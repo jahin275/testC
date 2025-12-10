@@ -1,146 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mock Test</title>
-    <style>
-        body { font-family: Arial; margin: 30px; }
-        .hidden { display: none; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Mock Test</title>
 </head>
-
 <body>
 
-<h2>60 Second Mock Test</h2>
+<h2>Mock Test</h2>
 
-<div id="userForm">
-    <label>Name:</label><br>
-    <input id="name" type="text"><br><br>
+<form id="testForm">
+  <label>Name:</label>
+  <input type="text" id="name" required><br><br>
 
-    <label>Email:</label><br>
-    <input id="email" type="email"><br><br>
+  <label>Email:</label>
+  <input type="email" id="email" required><br><br>
 
-    <button onclick="startTest()">Start Test</button>
-</div>
+  <label>Phone:</label>
+  <input type="text" id="phone" required><br><br>
 
-<div id="testArea" class="hidden">
-    <h3>Time Left: <span id="timer">60</span> seconds</h3>
+  <button type="button" onclick="startTest()">Start Test</button>
+</form>
 
-    <form id="questionsForm">
-        <p>1. 2+2 = ?<br>
-            <input type="radio" name="q1" value="4">4<br>
-            <input type="radio" name="q1" value="3">3<br>
-        </p>
+<div id="quiz" style="display:none;">
+  <h3>Questions</h3>
+  
+  <p>1. 2 + 2 = ?</p>
+  <input type="radio" name="q1" value="4">4
+  <input type="radio" name="q1" value="5">5
 
-        <p>2. Capital of France?<br>
-            <input type="radio" name="q2" value="Paris">Paris<br>
-            <input type="radio" name="q2" value="London">London<br>
-        </p>
+  <br><br>
 
-        <p>3. Sun rises from?<br>
-            <input type="radio" name="q3" value="East">East<br>
-            <input type="radio" name="q3" value="West">West<br>
-        </p>
+  <p>2. Capital of India?</p>
+  <input type="radio" name="q2" value="Delhi">Delhi
+  <input type="radio" name="q2" value="Mumbai">Mumbai
 
-        <p>4. 5 × 3 = ?<br>
-            <input type="radio" name="q4" value="15">15<br>
-            <input type="radio" name="q4" value="10">10<br>
-        </p>
+  <br><br>
 
-        <p>5. Water formula?<br>
-            <input type="radio" name="q5" value="H2O">H2O<br>
-            <input type="radio" name="q5" value="CO2">CO2<br>
-        </p>
-
-        <button type="button" onclick="submitTest()">Submit</button>
-    </form>
+  <button onclick="submitTest()">Submit</button>
 </div>
 
 <script>
-let timeLeft = 60;
-let timerInterval;
-
-// Correct answers
-const correctAnswers = {
-    q1: "4",
-    q2: "Paris",
-    q3: "East",
-    q4: "15",
-    q5: "H2O"
-};
+let startTime;
 
 function startTest() {
-    const name = document.getElementById("name").value.trim();
-    const email = document.getElementById("email").value.trim();
+  startTime = new Date().toISOString();
 
-    if (!name || !email) {
-        alert("Enter name and email");
-        return;
-    }
-
-    document.getElementById("userForm").classList.add("hidden");
-    document.getElementById("testArea").classList.remove("hidden");
-
-    timerInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById("timer").textContent = timeLeft;
-
-        if (timeLeft <= 0) {
-            clearInterval(timerInterval);
-            submitTest();
-        }
-
-    }, 1000);
+  document.getElementById("testForm").style.display = "none";
+  document.getElementById("quiz").style.display = "block";
 }
 
 function submitTest() {
-    clearInterval(timerInterval);
+  const endTime = new Date().toISOString();
 
-    const formData = new FormData(document.getElementById("questionsForm"));
-    let correct = 0, wrong = 0, unattempted = 0;
+  let correct = 0;
+  let wrong = 0;
+  let unattempted = 0;
 
-    for (let q in correctAnswers) {
-        const ans = formData.get(q);
+  function check(qName, correctAnswer) {
+    const selected = document.querySelector(`input[name=${qName}]:checked`);
+    if (!selected) { unattempted++; return; }
+    if (selected.value === correctAnswer) correct++;
+    else wrong++;
+  }
 
-        if (!ans) {
-            unattempted++;
-        } else if (ans === correctAnswers[q]) {
-            correct++;
-        } else {
-            wrong++;
-        }
-    }
+  check("q1", "4");
+  check("q2", "Delhi");
 
-    const totalMarks = correct*1 + wrong*(-0.5);
-    const percentage = (correct / 5) * 100;
+  const totalMarks = correct - (wrong * 0.5);
+  const percentage = (correct / 2) * 100;
 
-    const payload = {
-        testId: "TEST-" + Date.now(),
-        name: document.getElementById("name").value,
-        email: document.getElementById("email").value,
-        phone: "",
-        startTime: new Date().toLocaleString(),
-        endTime: new Date().toLocaleString(),
-        duration: 1,
-        correct: correct,
-        wrong: wrong,
-        unattempted: unattempted,
-        totalMarks: totalMarks,
-        percentage: percentage
-    };
+  const data = {
+    testId: "TEST-" + Math.floor(Math.random() * 100000),
+    name: document.getElementById("name").value,
+    email: document.getElementById("email").value,
+    phone: document.getElementById("phone").value,
+    startTime,
+    endTime,
+    duration: "1",
+    correct,
+    wrong,
+    unattempted,
+    totalMarks,
+    percentage
+  };
 
-    fetch("https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec", {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" }
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert("Test submitted successfully");
-        console.log(data);
-    })
-    .catch(err => {
-        alert("Failed to submit: " + err);
-    });
+  fetch("YOUR_SCRIPT_URL_HERE", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },  // IMPORTANT FIX
+    body: JSON.stringify(data)
+  })
+  .then(res => res.json())
+  .then(d => alert("Submitted!"))
+  .catch(err => alert("Failed: " + err));
 }
 </script>
 
