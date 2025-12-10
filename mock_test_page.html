@@ -265,6 +265,23 @@
       font-size: 1.3rem;
       text-align: center;
       margin-bottom: 25px;
+      transition: all 0.5s;
+    }
+
+    .timer.warning {
+      background-color: #ff6a00;
+      animation: pulse 1s infinite;
+    }
+
+    .timer.danger {
+      background-color: #ff4500;
+      animation: pulse 0.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
     }
 
     .submit-section {
@@ -379,6 +396,45 @@
       width: 0%;
       transition: width 0.5s;
     }
+    
+    /* New Styles for Redirect Message */
+    .redirect-message {
+      background-color: #fff5e6;
+      border: 2px solid #ff8c00;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 1.1rem;
+      color: #333;
+    }
+    
+    .redirect-message i {
+      color: #ff8c00;
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+    
+    .redirect-countdown {
+      font-weight: bold;
+      color: #ff6a00;
+      font-size: 1.3rem;
+      margin: 10px 0;
+    }
+    
+    /* Auto-submission warning */
+    .auto-submit-warning {
+      background-color: #fff5e6;
+      border: 2px solid #ff4500;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+      text-align: center;
+      font-weight: bold;
+      color: #ff4500;
+      animation: pulse 1.5s infinite;
+    }
   </style>
 </head>
 <body>
@@ -415,7 +471,7 @@
         <div class="test-info">
           <div class="info-item">
             <i class="fas fa-clock"></i>
-            <span>Test Duration: 30 minutes</span>
+            <span>Test Duration: 30 seconds</span>
           </div>
           <div class="info-item">
             <i class="fas fa-question-circle"></i>
@@ -429,6 +485,10 @@
             <i class="fas fa-book"></i>
             <span>Sections: English (3), GK (2), Aptitude (5)</span>
           </div>
+          <div class="info-item">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Auto-submission after 30 seconds</span>
+          </div>
         </div>
         
         <div style="text-align: center;">
@@ -440,8 +500,12 @@
 
       <!-- Quiz Section -->
       <div id="quiz">
-        <div class="timer">
-          <i class="fas fa-hourglass-half"></i> Time Remaining: <span id="time">30:00</span>
+        <div class="timer" id="timer">
+          <i class="fas fa-hourglass-half"></i> Time Remaining: <span id="time">30</span> seconds
+        </div>
+        
+        <div class="auto-submit-warning" id="autoSubmitWarning" style="display: none;">
+          <i class="fas fa-exclamation-circle"></i> Auto-submitting in <span id="warningCountdown">10</span> seconds!
         </div>
         
         <div class="progress-bar">
@@ -735,18 +799,25 @@
         <p><strong>Name:</strong> <span id="resultName"></span></p>
         <p><strong>Email:</strong> <span id="resultEmail"></span></p>
         <p><strong>Test ID:</strong> <span id="testId"></span></p>
-        <p><strong>Duration:</strong> <span id="testDuration"></span> minutes</p>
+        <p><strong>Duration:</strong> <span id="testDuration"></span> seconds</p>
       </div>
       
-      <button class="close-result" onclick="closeResult()">Close Results</button>
+      <div class="redirect-message" id="redirectMessage">
+        <i class="fas fa-external-link-alt"></i>
+        <p>You will be redirected to the home page in <span class="redirect-countdown" id="redirectCountdown">5</span> seconds</p>
+      </div>
+      
+      <button class="close-result" onclick="redirectNow()">Go to Home Now</button>
     </div>
   </div>
 
   <script>
     let startTime;
     let timerInterval;
-    let timeLeft = 30 * 60; // 30 minutes in seconds
+    let timeLeft = 30; // 30 seconds total
     const totalQuestions = 10;
+    let redirectTimer;
+    let redirectSeconds = 5;
     
     // Correct answers for each question
     const correctAnswers = {
@@ -804,6 +875,11 @@
       document.getElementById('testForm').style.display = 'none';
       document.getElementById('quiz').style.display = 'block';
       
+      // Reset timer display
+      document.getElementById('time').textContent = timeLeft;
+      document.getElementById('timer').className = 'timer';
+      document.getElementById('autoSubmitWarning').style.display = 'none';
+      
       // Start the timer
       startTimer();
       
@@ -816,19 +892,30 @@
         timeLeft--;
         
         // Update timer display
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        document.getElementById('time').textContent = 
-          `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        document.getElementById('time').textContent = timeLeft;
         
-        // Change color when less than 5 minutes left
-        if (timeLeft < 5 * 60) {
-          document.querySelector('.timer').style.backgroundColor = '#ff4500';
+        // Change timer color based on remaining time
+        const timerElement = document.getElementById('timer');
+        if (timeLeft <= 10) {
+          timerElement.className = 'timer danger';
+        } else if (timeLeft <= 20) {
+          timerElement.className = 'timer warning';
+        }
+        
+        // Show warning when 10 seconds left
+        if (timeLeft === 10) {
+          document.getElementById('autoSubmitWarning').style.display = 'block';
+        }
+        
+        // Update warning countdown
+        if (timeLeft <= 10 && timeLeft > 0) {
+          document.getElementById('warningCountdown').textContent = timeLeft;
         }
         
         // Auto-submit when time is up
         if (timeLeft <= 0) {
           clearInterval(timerInterval);
+          document.getElementById('autoSubmitWarning').style.display = 'none';
           submitTest();
         }
       }, 1000);
@@ -892,10 +979,10 @@
       // Generate test ID
       const testId = "BUP-" + Date.now().toString().substr(-6);
       
-      // Calculate time taken
+      // Calculate time taken (in seconds)
       const start = new Date(startTime);
       const end = new Date(endTime);
-      const durationMinutes = Math.round((end - start) / 1000 / 60);
+      const durationSeconds = Math.round((end - start) / 1000);
       
       // Show results
       document.getElementById('finalScore').textContent = totalMarks.toFixed(1);
@@ -906,7 +993,7 @@
       document.getElementById('resultName').textContent = document.getElementById('name').value;
       document.getElementById('resultEmail').textContent = document.getElementById('email').value;
       document.getElementById('testId').textContent = testId;
-      document.getElementById('testDuration').textContent = durationMinutes;
+      document.getElementById('testDuration').textContent = durationSeconds;
       
       // Set result message based on score
       let message = "";
@@ -924,6 +1011,9 @@
       // Show result overlay
       document.getElementById('resultOverlay').style.display = 'flex';
       
+      // Start redirect countdown
+      startRedirectCountdown();
+      
       // Prepare data for Google Sheets
       const data = {
         testId: testId,
@@ -932,7 +1022,7 @@
         phone: document.getElementById("phone").value,
         startTime: startTime,
         endTime: endTime,
-        duration: durationMinutes.toString(),
+        duration: durationSeconds.toString(),
         correct: correct,
         wrong: wrong,
         unattempted: unattempted,
@@ -958,8 +1048,24 @@
       .catch(err => console.error("Failed to send data:", err));
     }
     
-    function closeResult() {
-      document.getElementById('resultOverlay').style.display = 'none';
+    function startRedirectCountdown() {
+      redirectSeconds = 5;
+      document.getElementById('redirectCountdown').textContent = redirectSeconds;
+      
+      redirectTimer = setInterval(() => {
+        redirectSeconds--;
+        document.getElementById('redirectCountdown').textContent = redirectSeconds;
+        
+        if (redirectSeconds <= 0) {
+          clearInterval(redirectTimer);
+          redirectNow();
+        }
+      }, 1000);
+    }
+    
+    function redirectNow() {
+      clearInterval(redirectTimer);
+      window.location.href = "index.html";
     }
     
     function resetTest() {
@@ -975,9 +1081,10 @@
         
         // Reset timer
         clearInterval(timerInterval);
-        timeLeft = 30 * 60;
-        document.getElementById('time').textContent = "30:00";
-        document.querySelector('.timer').style.backgroundColor = '#ff8c00';
+        timeLeft = 30;
+        document.getElementById('time').textContent = timeLeft;
+        document.getElementById('timer').className = 'timer';
+        document.getElementById('autoSubmitWarning').style.display = 'none';
         
         // Reset progress bar
         document.getElementById('progressBar').style.width = '0%';
