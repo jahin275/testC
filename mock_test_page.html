@@ -84,7 +84,7 @@ function submitTest() {
     percentage
   };
 
-  fetch("YOUR_SCRIPT_URL_HERE", {
+  fetch("https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec", {
     method: "POST",
     headers: { "Content-Type": "text/plain" },  // IMPORTANT FIX
     body: JSON.stringify(data)
