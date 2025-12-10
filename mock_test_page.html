@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mock Test</title>
+    <style>
+        body { font-family: Arial; margin: 30px; }
+        .hidden { display: none; }
+    </style>
+</head>
+
+<body>
+
+<h2>60 Second Mock Test</h2>
+
+<div id="userForm">
+    <label>Name:</label><br>
+    <input id="name" type="text"><br><br>
+
+    <label>Email:</label><br>
+    <input id="email" type="email"><br><br>
+
+    <button onclick="startTest()">Start Test</button>
+</div>
+
+<div id="testArea" class="hidden">
+    <h3>Time Left: <span id="timer">60</span> seconds</h3>
+
+    <form id="questionsForm">
+        <p>1. 2+2 = ?<br>
+            <input type="radio" name="q1" value="4">4<br>
+            <input type="radio" name="q1" value="3">3<br>
+        </p>
+
+        <p>2. Capital of France?<br>
+            <input type="radio" name="q2" value="Paris">Paris<br>
+            <input type="radio" name="q2" value="London">London<br>
+        </p>
+
+        <p>3. Sun rises from?<br>
+            <input type="radio" name="q3" value="East">East<br>
+            <input type="radio" name="q3" value="West">West<br>
+        </p>
+
+        <p>4. 5 × 3 = ?<br>
+            <input type="radio" name="q4" value="15">15<br>
+            <input type="radio" name="q4" value="10">10<br>
+        </p>
+
+        <p>5. Water formula?<br>
+            <input type="radio" name="q5" value="H2O">H2O<br>
+            <input type="radio" name="q5" value="CO2">CO2<br>
+        </p>
+
+        <button type="button" onclick="submitTest()">Submit</button>
+    </form>
+</div>
+
+<script>
+let timeLeft = 60;
+let timerInterval;
+
+// Correct answers
+const correctAnswers = {
+    q1: "4",
+    q2: "Paris",
+    q3: "East",
+    q4: "15",
+    q5: "H2O"
+};
+
+function startTest() {
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+
+    if (!name || !email) {
+        alert("Enter name and email");
+        return;
+    }
+
+    document.getElementById("userForm").classList.add("hidden");
+    document.getElementById("testArea").classList.remove("hidden");
+
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").textContent = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            submitTest();
+        }
+
+    }, 1000);
+}
+
+function submitTest() {
+    clearInterval(timerInterval);
+
+    const formData = new FormData(document.getElementById("questionsForm"));
+    let correct = 0, wrong = 0, unattempted = 0;
+
+    for (let q in correctAnswers) {
+        const ans = formData.get(q);
+
+        if (!ans) {
+            unattempted++;
+        } else if (ans === correctAnswers[q]) {
+            correct++;
+        } else {
+            wrong++;
+        }
+    }
+
+    const totalMarks = correct*1 + wrong*(-0.5);
+    const percentage = (correct / 5) * 100;
+
+    const payload = {
+        testId: "TEST-" + Date.now(),
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        phone: "",
+        startTime: new Date().toLocaleString(),
+        endTime: new Date().toLocaleString(),
+        duration: 1,
+        correct: correct,
+        wrong: wrong,
+        unattempted: unattempted,
+        totalMarks: totalMarks,
+        percentage: percentage
+    };
+
+    fetch("https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" }
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert("Test submitted successfully");
+        console.log(data);
+    })
+    .catch(err => {
+        alert("Failed to submit: " + err);
+    });
+}
+</script>
+
+</body>
+</html>
