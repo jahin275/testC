@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BUP Admission Test</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  
   <style>
     * {
       margin: 0;
@@ -661,676 +664,617 @@
     </div>
   </div>
 
-  <script>
-    // Global variables
-    let startTime;
-    let timerInterval;
-    let timeLeft = 30; // Default 30 seconds
-    let totalQuestions = 0;
-    let questionsData = [];
-    let correctAnswers = {};
-    let redirectTimer;
-    let redirectSeconds = 5;
-    let questionSections = new Set();
-    let testConfig = {
-      duration: 30,
-      correctMark: 1,
-      wrongPenalty: 0.5
-    };
+ <script>
+  // Add MathJax configuration
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)']],
+      displayMath: [['$$', '$$']],
+      processEscapes: true
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  };
+
+  // Global variables
+  let startTime;
+  let timerInterval;
+  let timeLeft = 30; // Default 30 seconds
+  let totalQuestions = 0;
+  let questionsData = [];
+  let correctAnswers = {};
+  let redirectTimer;
+  let redirectSeconds = 5;
+  let questionSections = new Set();
+  let testConfig = {
+    duration: 30,
+    correctMark: 1,
+    wrongPenalty: 0.5
+  };
+  
+  // Initialize when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    loadQuestions();
+  });
+  
+  // Function to process LaTeX
+  function processLaTeX(text) {
+    if (!text || typeof text !== 'string') return text || '';
     
-    // Initialize when page loads
-    document.addEventListener('DOMContentLoaded', function() {
+    // Replace $...$ with \\(...\\) for inline math
+    let processed = text.replace(/\$(.*?)\$/g, '\\($1\\)');
+    
+    return processed;
+  }
+  
+  // Fetch questions from Google Sheets
+  async function loadQuestions() {
+    try {
+      // Show loading state
+      document.getElementById('formLoading').style.display = 'block';
+      document.getElementById('formError').style.display = 'none';
+      document.getElementById('startTestBtn').disabled = true;
+      document.getElementById('questionSourceInfo').textContent = 'Connecting to Google Sheets...';
+      document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+      
+      const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.questions && result.questions.length > 0) {
+        questionsData = result.questions;
+        totalQuestions = questionsData.length;
+        
+        console.log("Raw questions data:", questionsData); // Debug log
+        
+        // Clear previous data
+        correctAnswers = {};
+        questionSections.clear();
+        
+        // Process questions data
+        questionsData.forEach((q, index) => {
+          const questionId = `q${index + 1}`;
+          
+          // Normalize the answer - handle spaces and case
+          let answer = '';
+          if (q.answer) {
+            answer = String(q.answer).trim().toLowerCase();
+          } else if (q.Answer) {
+            answer = String(q.Answer).trim().toLowerCase();
+          } else if (q.ANSWER) {
+            answer = String(q.ANSWER).trim().toLowerCase();
+          }
+          
+          if (answer) {
+            correctAnswers[questionId] = answer;
+          }
+          
+          // Get question type
+          const type = q.Type || q.type || 'General';
+          questionSections.add(type);
+          
+          // Store marks per question
+          q.marksValue = parseFloat(q.Marks || q.marks || testConfig.correctMark) || testConfig.correctMark;
+          
+          // Store question text and options with LaTeX processing
+          q.questionText = processLaTeX(q.Question || q.question || '');
+          q.optionA = processLaTeX(q['Option A'] || q.optiona || q['option a'] || '');
+          q.optionB = processLaTeX(q['Option B'] || q.optionb || q['option b'] || '');
+          q.optionC = processLaTeX(q['Option C'] || q.optionc || q['option c'] || '');
+          q.optionD = processLaTeX(q['Option D'] || q.optiond || q['option d'] || '');
+        });
+        
+        console.log(`Successfully loaded ${totalQuestions} questions from Google Sheets`);
+        console.log("Processed questions:", questionsData); // Debug log
+        
+        // Update UI with loaded data
+        updateFormInfo();
+        
+        // Enable start button
+        document.getElementById('startTestBtn').disabled = false;
+        document.getElementById('formLoading').style.display = 'none';
+        document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+        
+      } else {
+        throw new Error("No questions found in Google Sheets or invalid response format");
+      }
+    } catch (error) {
+      console.error("Error loading questions from Google Sheets:", error);
+      
+      // Show error message
+      document.getElementById('formLoading').style.display = 'none';
+      document.getElementById('formError').style.display = 'block';
+      document.getElementById('errorMessage').textContent = `Error: ${error.message}. Please check: 1) Google Sheets is shared publicly, 2) Sheet name is "Questions", 3) Columns are properly formatted.`;
+      document.getElementById('questionSourceInfo').textContent = 'Failed to load questions from Google Sheets';
+      document.getElementById('startTestBtn').disabled = true;
+    }
+  }
+  
+  function updateFormInfo() {
+    // Update total questions count
+    document.getElementById('totalQuestionsCount').textContent = totalQuestions;
+    
+    // Update sections info
+    const sectionsArray = Array.from(questionSections);
+    let sectionsText = "";
+    
+    if (sectionsArray.length > 0) {
+      // Count questions per section
+      const sectionCounts = {};
+      questionsData.forEach(q => {
+        const type = q.Type || q.type || 'General';
+        sectionCounts[type] = (sectionCounts[type] || 0) + 1;
+      });
+      
+      // Create sections text
+      sectionsText = sectionsArray.map(section => {
+        const count = sectionCounts[section] || 0;
+        return `${section} (${count})`;
+      }).join(", ");
+    } else {
+      sectionsText = "All Subjects";
+    }
+    
+    document.getElementById('sectionsInfo').textContent = sectionsText;
+    
+    // Update test duration
+    document.getElementById('testDurationInfo').textContent = testConfig.duration;
+    document.getElementById('time').textContent = testConfig.duration;
+    document.getElementById('autoSubmitInfo').textContent = `Auto-submission after ${testConfig.duration} seconds`;
+  }
+  
+  function validateAndStartTest() {
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    
+    let valid = true;
+    
+    // Reset error messages
+    document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+    
+    // Validate name
+    if (name === '') {
+      document.getElementById('nameError').style.display = 'block';
+      valid = false;
+    }
+    
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      document.getElementById('emailError').style.display = 'block';
+      valid = false;
+    }
+    
+    // Validate phone
+    const phoneRegex = /^[0-9+\-\s]{10,15}$/;
+    if (!phoneRegex.test(phone)) {
+      document.getElementById('phoneError').style.display = 'block';
+      valid = false;
+    }
+    
+    // Validate that questions are loaded
+    if (questionsData.length === 0) {
+      alert("Questions are not loaded. Please refresh the page or check your connection.");
       loadQuestions();
+      valid = false;
+    }
+    
+    if (valid) {
+      startTest();
+    }
+  }
+  
+  function startTest() {
+    startTime = new Date().toISOString();
+    
+    // Hide form and show quiz
+    document.getElementById('testForm').style.display = 'none';
+    document.getElementById('quiz').style.display = 'block';
+    
+    // Reset timer display
+    timeLeft = testConfig.duration;
+    document.getElementById('time').textContent = timeLeft;
+    document.getElementById('timer').className = 'timer';
+    document.getElementById('autoSubmitWarning').style.display = 'none';
+    
+    // Display questions
+    displayQuestions();
+    
+    // Start the timer
+    startTimer();
+    
+    // Update progress bar
+    updateProgressBar();
+  }
+  
+  function displayQuestions() {
+    const questionsContainer = document.getElementById('questionsContainer');
+    const questionLoading = document.getElementById('questionLoading');
+    const quizError = document.getElementById('quizError');
+    
+    // Clear previous questions
+    questionsContainer.innerHTML = '';
+    questionLoading.style.display = 'block';
+    quizError.style.display = 'none';
+    
+    if (questionsData.length === 0) {
+      questionLoading.style.display = 'none';
+      quizError.style.display = 'block';
+      return;
+    }
+    
+    // Group questions by type
+    const questionsByType = {};
+    questionsData.forEach((question, index) => {
+      const type = question.Type || question.type || 'General';
+      if (!questionsByType[type]) {
+        questionsByType[type] = [];
+      }
+      questionsByType[type].push({...question, index: index + 1});
     });
     
-    // Fetch questions from Google Sheets
-    async function loadQuestions() {
-      try {
-        // Show loading state
-        document.getElementById('formLoading').style.display = 'block';
-        document.getElementById('formError').style.display = 'none';
-        document.getElementById('startTestBtn').disabled = true;
-        document.getElementById('questionSourceInfo').textContent = 'Connecting to Google Sheets...';
-        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+    // Display questions by type
+    Object.keys(questionsByType).forEach(type => {
+      const typeQuestions = questionsByType[type];
+      
+      // Add section header
+      const sectionHeader = document.createElement('h3');
+      sectionHeader.className = 'section-title';
+      sectionHeader.style.fontSize = '1.3rem';
+      sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
+      questionsContainer.appendChild(sectionHeader);
+      
+      // Add questions for this section
+      typeQuestions.forEach(q => {
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'question-container';
+        questionDiv.id = `q${q.index}`;
         
-        const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
+        questionDiv.innerHTML = `
+          <div class="question-number">${q.index}</div>
+          <div class="question-text">${escapeHtml(q.questionText || '')}</div>
+          <div class="options-container">
+            <div class="option" onclick="selectOption('q${q.index}', 'a')">
+              <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
+              <div class="option-label">A) ${escapeHtml(q.optionA || '')}</div>
+            </div>
+            <div class="option" onclick="selectOption('q${q.index}', 'b')">
+              <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
+              <div class="option-label">B) ${escapeHtml(q.optionB || '')}</div>
+            </div>
+            <div class="option" onclick="selectOption('q${q.index}', 'c')">
+              <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
+              <div class="option-label">C) ${escapeHtml(q.optionC || '')}</div>
+            </div>
+            <div class="option" onclick="selectOption('q${q.index}', 'd')">
+              <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
+              <div class="option-label">D) ${escapeHtml(q.optionD || '')}</div>
+            </div>
+          </div>
+        `;
         
-        const response = await fetch(url);
+        questionsContainer.appendChild(questionDiv);
+      });
+    });
+    
+    questionLoading.style.display = 'none';
+    
+    // Re-render MathJax after loading questions
+    if (window.MathJax && MathJax.typeset) {
+      setTimeout(() => {
+        MathJax.typeset();
+      }, 100);
+    }
+  }
+  
+  // Helper function to escape HTML
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  function startTimer() {
+    clearInterval(timerInterval);
+    
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      
+      // Update timer display
+      document.getElementById('time').textContent = timeLeft;
+      
+      // Change timer color based on remaining time
+      const timerElement = document.getElementById('timer');
+      if (timeLeft <= Math.floor(testConfig.duration * 0.33)) {
+        timerElement.className = 'timer danger';
+      } else if (timeLeft <= Math.floor(testConfig.duration * 0.66)) {
+        timerElement.className = 'timer warning';
+      }
+      
+      // Show warning when 10 seconds left
+      if (timeLeft === 10) {
+        document.getElementById('autoSubmitWarning').style.display = 'block';
+      }
+      
+      // Update warning countdown
+      if (timeLeft <= 10 && timeLeft > 0) {
+        document.getElementById('warningCountdown').textContent = timeLeft;
+      }
+      
+      // Auto-submit when time is up
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        document.getElementById('autoSubmitWarning').style.display = 'none';
+        submitTest();
+      }
+    }, 1000);
+  }
+  
+  function selectOption(questionId, option) {
+    // Unselect all options for this question
+    const options = document.querySelectorAll(`input[name=${questionId}]`);
+    options.forEach(opt => {
+      opt.checked = false;
+      opt.parentElement.classList.remove('selected');
+    });
+    
+    // Select the clicked option
+    const selectedOption = document.getElementById(`${questionId}${option}`);
+    if (selectedOption) {
+      selectedOption.checked = true;
+      selectedOption.parentElement.classList.add('selected');
+    }
+    
+    // Update progress bar
+    updateProgressBar();
+  }
+  
+  function updateProgressBar() {
+    let answered = 0;
+    for (let i = 1; i <= totalQuestions; i++) {
+      const selected = document.querySelector(`input[name=q${i}]:checked`);
+      if (selected) answered++;
+    }
+    
+    const progressPercentage = (answered / totalQuestions) * 100;
+    document.getElementById('progressBar').style.width = `${progressPercentage}%`;
+  }
+  
+  function submitTest() {
+    clearInterval(timerInterval);
+    
+    const endTime = new Date().toISOString();
+    
+    let correct = 0;
+    let wrong = 0;
+    let unattempted = 0;
+    let totalMarks = 0;
+    let totalPossibleMarks = 0;
+    
+    // Check each question
+    for (let i = 1; i <= totalQuestions; i++) {
+      const questionId = `q${i}`;
+      const selected = document.querySelector(`input[name=${questionId}]:checked`);
+      const questionData = questionsData[i - 1];
+      const marksForQuestion = questionData.marksValue || testConfig.correctMark;
+      
+      totalPossibleMarks += marksForQuestion;
+      
+      if (!selected) {
+        unattempted++;
+      } else {
+        const userAnswer = selected.value.toLowerCase().trim();
+        const correctAnswer = correctAnswers[questionId];
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        console.log(`Question ${i}: User Answer=${userAnswer}, Correct Answer=${correctAnswer}`);
         
-        const result = await response.json();
-        
-        if (result.success && result.questions && result.questions.length > 0) {
-          questionsData = result.questions;
-          totalQuestions = questionsData.length;
-          
-          console.log("Raw questions data:", questionsData); // Debug log
-          
-          // Clear previous data
-          correctAnswers = {};
-          questionSections.clear();
-          
-          // Process questions data
-          questionsData.forEach((q, index) => {
-            const questionId = `q${index + 1}`;
-            
-            // Normalize the answer - handle spaces and case
-            let answer = '';
-            if (q.answer) {
-              answer = String(q.answer).trim().toLowerCase();
-            } else if (q.Answer) {
-              answer = String(q.Answer).trim().toLowerCase();
-            } else if (q.ANSWER) {
-              answer = String(q.ANSWER).trim().toLowerCase();
-            }
-            
-            if (answer) {
-              correctAnswers[questionId] = answer;
-            }
-            
-            // Get question type
-            const type = q.Type || q.type || 'General';
-            questionSections.add(type);
-            
-            // Store marks per question
-            q.marksValue = parseFloat(q.Marks || q.marks || testConfig.correctMark) || testConfig.correctMark;
-            
-            // Store question text and options with proper field names
-            q.questionText = q.Question || q.question || '';
-            q.optionA = q['Option A'] || q.optiona || q['option a'] || '';
-            q.optionB = q['Option B'] || q.optionb || q['option b'] || '';
-            q.optionC = q['Option C'] || q.optionc || q['option c'] || '';
-            q.optionD = q['Option D'] || q.optiond || q['option d'] || '';
-          });
-          
-          console.log(`Successfully loaded ${totalQuestions} questions from Google Sheets`);
-          console.log("Processed questions:", questionsData); // Debug log
-          
-          // Update UI with loaded data
-          updateFormInfo();
-          
-          // Enable start button
-          document.getElementById('startTestBtn').disabled = false;
-          document.getElementById('formLoading').style.display = 'none';
-          document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
-          document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
-          
+        if (correctAnswer && userAnswer === correctAnswer) {
+          correct++;
+          totalMarks += marksForQuestion;
         } else {
-          throw new Error("No questions found in Google Sheets or invalid response format");
+          wrong++;
+          totalMarks -= (marksForQuestion * testConfig.wrongPenalty);
         }
-      } catch (error) {
-        console.error("Error loading questions from Google Sheets:", error);
-        
-        // Show error message
-        document.getElementById('formLoading').style.display = 'none';
-        document.getElementById('formError').style.display = 'block';
-        document.getElementById('errorMessage').textContent = `Error: ${error.message}. Please check: 1) Google Sheets is shared publicly, 2) Sheet name is "Questions", 3) Columns are properly formatted.`;
-        document.getElementById('questionSourceInfo').textContent = 'Failed to load questions from Google Sheets';
-        document.getElementById('startTestBtn').disabled = true;
       }
     }
     
-    function updateFormInfo() {
-      // Update total questions count
-      document.getElementById('totalQuestionsCount').textContent = totalQuestions;
+    // Ensure total marks is not negative
+    totalMarks = Math.max(0, totalMarks);
+    
+    // Calculate percentage
+    const percentage = totalPossibleMarks > 0 ? ((totalMarks / totalPossibleMarks) * 100).toFixed(2) : 0;
+    
+    // Generate test ID
+    const testId = "BUP-" + Date.now().toString().substr(-8);
+    
+    // Calculate time taken (in seconds)
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const durationSeconds = Math.round((end - start) / 1000);
+    
+    // Show results
+    document.getElementById('finalScore').textContent = totalMarks.toFixed(1);
+    document.getElementById('correctCount').textContent = correct;
+    document.getElementById('wrongCount').textContent = wrong;
+    document.getElementById('unattemptedCount').textContent = unattempted;
+    document.getElementById('percentage').textContent = percentage + '%';
+    document.getElementById('resultName').textContent = document.getElementById('name').value;
+    document.getElementById('resultEmail').textContent = document.getElementById('email').value;
+    document.getElementById('testId').textContent = testId;
+    document.getElementById('testDuration').textContent = durationSeconds;
+    document.getElementById('questionsAttempted').textContent = totalQuestions - unattempted;
+    document.getElementById('totalQuestionsResult').textContent = totalQuestions;
+    
+    // Set result message based on score
+    let message = "";
+    const percentageNum = parseFloat(percentage);
+    if (percentageNum >= 80) {
+      message = "Excellent! You have a great chance of getting admission.";
+    } else if (percentageNum >= 60) {
+      message = "Good job! You have a decent chance of getting admission.";
+    } else if (percentageNum >= 40) {
+      message = "Fair performance. Consider practicing more.";
+    } else {
+      message = "You need more preparation. Keep practicing!";
+    }
+    document.getElementById('resultMessage').textContent = message;
+    
+    // Show result overlay
+    document.getElementById('resultOverlay').style.display = 'flex';
+    
+    // Start redirect countdown
+    startRedirectCountdown();
+    
+    // Prepare data for Google Sheets
+    const data = {
+      testId: testId,
+      name: document.getElementById("name").value,
+      email: document.getElementById("email").value,
+      phone: document.getElementById("phone").value,
+      startTime: startTime,
+      endTime: endTime,
+      duration: durationSeconds.toString(),
+      correct: correct,
+      wrong: wrong,
+      unattempted: unattempted,
+      totalMarks: totalMarks.toFixed(2),
+      percentage: percentage,
+      totalQuestions: totalQuestions,
+      source: "Google Sheets"
+    };
+    
+    // Send data to Google Sheets
+    sendToGoogleSheets(data);
+  }
+  
+  function sendToGoogleSheets(data) {
+    const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
+    
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(d => {
+      console.log("Data sent to Google Sheets successfully:", d);
+    })
+    .catch(err => {
+      console.error("Failed to send data to Google Sheets:", err);
+    });
+  }
+  
+  function startRedirectCountdown() {
+    clearInterval(redirectTimer);
+    redirectSeconds = 5;
+    document.getElementById('redirectCountdown').textContent = redirectSeconds;
+    
+    redirectTimer = setInterval(() => {
+      redirectSeconds--;
+      document.getElementById('redirectCountdown').textContent = redirectSeconds;
       
-      // Update sections info
-      const sectionsArray = Array.from(questionSections);
-      let sectionsText = "";
+      if (redirectSeconds <= 0) {
+        clearInterval(redirectTimer);
+        redirectNow();
+      }
+    }, 1000);
+  }
+  
+  function redirectNow() {
+    clearInterval(redirectTimer);
+    window.location.reload();
+  }
+  
+  function resetTest() {
+    if (confirm("Are you sure you want to reset the test? All your answers will be lost.")) {
+      // Clear all selections
+      for (let i = 1; i <= totalQuestions; i++) {
+        const options = document.querySelectorAll(`input[name=q${i}]`);
+        options.forEach(opt => {
+          opt.checked = false;
+          opt.parentElement.classList.remove('selected');
+        });
+      }
       
-      if (sectionsArray.length > 0) {
-        // Count questions per section
+      // Reset timer
+      clearInterval(timerInterval);
+      timeLeft = testConfig.duration;
+      document.getElementById('time').textContent = timeLeft;
+      document.getElementById('timer').className = 'timer';
+      document.getElementById('autoSubmitWarning').style.display = 'none';
+      
+      // Reset progress bar
+      document.getElementById('progressBar').style.width = '0%';
+      
+      // Show form again
+      document.getElementById('testForm').style.display = 'block';
+      document.getElementById('quiz').style.display = 'none';
+      
+      // Reset form fields
+      document.getElementById('name').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('phone').value = '';
+    }
+  }
+  
+  function showQuestionStats() {
+    const statsDiv = document.getElementById('adminStats');
+    const isVisible = statsDiv.style.display !== 'none';
+    
+    if (!isVisible) {
+      let statsHTML = `<h4>Question Statistics</h4>`;
+      statsHTML += `<p><strong>Total Questions:</strong> ${totalQuestions}</p>`;
+      statsHTML += `<p><strong>Loaded From:</strong> Google Sheets</p>`;
+      
+      if (questionSections.size > 0) {
+        statsHTML += `<p><strong>Sections:</strong></p><ul>`;
         const sectionCounts = {};
         questionsData.forEach(q => {
           const type = q.Type || q.type || 'General';
           sectionCounts[type] = (sectionCounts[type] || 0) + 1;
         });
         
-        // Create sections text
-        sectionsText = sectionsArray.map(section => {
-          const count = sectionCounts[section] || 0;
-          return `${section} (${count})`;
-        }).join(", ");
-      } else {
-        sectionsText = "All Subjects";
+        Object.keys(sectionCounts).forEach(section => {
+          statsHTML += `<li>${section}: ${sectionCounts[section]} questions</li>`;
+        });
+        statsHTML += `</ul>`;
       }
       
-      document.getElementById('sectionsInfo').textContent = sectionsText;
+      // Show raw data for debugging
+      statsHTML += `<p><strong>Debug Data (first 3 questions):</strong></p>`;
+      statsHTML += `<pre style="font-size: 10px; max-height: 200px; overflow: auto; background: #f0f0f0; padding: 10px;">`;
+      questionsData.slice(0, 3).forEach((q, i) => {
+        statsHTML += `Question ${i + 1}:\n`;
+        statsHTML += `  Type: ${q.Type || q.type}\n`;
+        statsHTML += `  Question: ${q.Question || q.question || ''}\n`;
+        statsHTML += `  Option A: ${q['Option A'] || q.optionA || ''}\n`;
+        statsHTML += `  Option B: ${q['Option B'] || q.optionB || ''}\n`;
+        statsHTML += `  Option C: ${q['Option C'] || q.optionC || ''}\n`;
+        statsHTML += `  Option D: ${q['Option D'] || q.optionD || ''}\n`;
+        statsHTML += `  Answer: ${q.Answer || q.answer || ''}\n\n`;
+      });
+      statsHTML += `</pre>`;
       
-      // Update test duration
-      document.getElementById('testDurationInfo').textContent = testConfig.duration;
-      document.getElementById('time').textContent = testConfig.duration;
-      document.getElementById('autoSubmitInfo').textContent = `Auto-submission after ${testConfig.duration} seconds`;
+      statsHTML += `<p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>`;
+      statsDiv.innerHTML = statsHTML;
+      statsDiv.style.display = 'block';
+    } else {
+      statsDiv.style.display = 'none';
     }
-    
-    function validateAndStartTest() {
-      const name = document.getElementById('name').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      
-      let valid = true;
-      
-      // Reset error messages
-      document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
-      
-      // Validate name
-      if (name === '') {
-        document.getElementById('nameError').style.display = 'block';
-        valid = false;
-      }
-      
-      // Validate email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        document.getElementById('emailError').style.display = 'block';
-        valid = false;
-      }
-      
-      // Validate phone
-      const phoneRegex = /^[0-9+\-\s]{10,15}$/;
-      if (!phoneRegex.test(phone)) {
-        document.getElementById('phoneError').style.display = 'block';
-        valid = false;
-      }
-      
-      // Validate that questions are loaded
-      if (questionsData.length === 0) {
-        alert("Questions are not loaded. Please refresh the page or check your connection.");
-        loadQuestions();
-        valid = false;
-      }
-      
-      if (valid) {
-        startTest();
-      }
-    }
-    
-    function startTest() {
-      startTime = new Date().toISOString();
-      
-      // Hide form and show quiz
-      document.getElementById('testForm').style.display = 'none';
-      document.getElementById('quiz').style.display = 'block';
-      
-      // Reset timer display
-      timeLeft = testConfig.duration;
-      document.getElementById('time').textContent = timeLeft;
-      document.getElementById('timer').className = 'timer';
-      document.getElementById('autoSubmitWarning').style.display = 'none';
-      
-      // Display questions
-      displayQuestions();
-      
-      // Start the timer
-      startTimer();
-      
-      // Update progress bar
-      updateProgressBar();
-    }
-    // Add this function to process LaTeX in questions
-function processLaTeX(text) {
-  if (!text) return '';
-  
-  // Convert $...$ to \\(...\\) for MathJax inline math
-  text = text.replace(/\$(.*?)\$/g, '\\($1\\)');
-  
-  // Convert $$...$$ to \\[...\\] for MathJax display math
-  text = text.replace(/\$\$(.*?)\$\$/g, '\\[$1\\]');
-  
-  return text;
-}
-    
-    function displayQuestions() {
-  const questionsContainer = document.getElementById('questionsContainer');
-  const questionLoading = document.getElementById('questionLoading');
-  const quizError = document.getElementById('quizError');
-  
-  // Clear previous questions
-  questionsContainer.innerHTML = '';
-  questionLoading.style.display = 'block';
-  quizError.style.display = 'none';
-  
-  if (questionsData.length === 0) {
-    questionLoading.style.display = 'none';
-    quizError.style.display = 'block';
-    return;
   }
   
-  // Group questions by type
-  const questionsByType = {};
-  questionsData.forEach((question, index) => {
-    const type = question.Type || question.type || 'General';
-    if (!questionsByType[type]) {
-      questionsByType[type] = [];
-    }
-    questionsByType[type].push({...question, index: index + 1});
-  });
-  
-  // Display questions by type
-  Object.keys(questionsByType).forEach(type => {
-    const typeQuestions = questionsByType[type];
-    
-    // Add section header
-    const sectionHeader = document.createElement('h3');
-    sectionHeader.className = 'section-title';
-    sectionHeader.style.fontSize = '1.3rem';
-    sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
-    questionsContainer.appendChild(sectionHeader);
-    
-    // Add questions for this section
-    typeQuestions.forEach(q => {
-      const questionDiv = document.createElement('div');
-      questionDiv.className = 'question-container';
-      questionDiv.id = `q${q.index}`;
-      
-      // Process LaTeX in question and options
-      const questionText = processLaTeX(q.questionText || '');
-      const optionA = processLaTeX(q.optionA || '');
-      const optionB = processLaTeX(q.optionB || '');
-      const optionC = processLaTeX(q.optionC || '');
-      const optionD = processLaTeX(q.optionD || '');
-      
-      questionDiv.innerHTML = `
-        <div class="question-number">${q.index}</div>
-        <div class="question-text">${escapeHtml(questionText)}</div>
-        <div class="options-container">
-          <div class="option" onclick="selectOption('q${q.index}', 'a')">
-            <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
-            <div class="option-label">A) ${escapeHtml(optionA)}</div>
-          </div>
-          <div class="option" onclick="selectOption('q${q.index}', 'b')">
-            <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
-            <div class="option-label">B) ${escapeHtml(optionB)}</div>
-          </div>
-          <div class="option" onclick="selectOption('q${q.index}', 'c')">
-            <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
-            <div class="option-label">C) ${escapeHtml(optionC)}</div>
-          </div>
-          <div class="option" onclick="selectOption('q${q.index}', 'd')">
-            <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
-            <div class="option-label">D) ${escapeHtml(optionD)}</div>
-          </div>
-        </div>
-      `;
-      
-      questionsContainer.appendChild(questionDiv);
-    });
-  });
-  
-  questionLoading.style.display = 'none';
-  
-  // Trigger MathJax rendering
-  if (window.MathJax) {
-    MathJax.typeset();
+  function exportResults() {
+    alert("Export feature would typically download a CSV file of all test results. This requires additional backend setup.");
   }
-}
-      
-      // Group questions by type
-      const questionsByType = {};
-      questionsData.forEach((question, index) => {
-        const type = question.Type || question.type || 'General';
-        if (!questionsByType[type]) {
-          questionsByType[type] = [];
-        }
-        questionsByType[type].push({...question, index: index + 1});
-      });
-      
-      // Display questions by type
-      Object.keys(questionsByType).forEach(type => {
-        const typeQuestions = questionsByType[type];
-        
-        // Add section header
-        const sectionHeader = document.createElement('h3');
-        sectionHeader.className = 'section-title';
-        sectionHeader.style.fontSize = '1.3rem';
-        sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
-        questionsContainer.appendChild(sectionHeader);
-        
-        // Add questions for this section
-        typeQuestions.forEach(q => {
-          const questionDiv = document.createElement('div');
-          questionDiv.className = 'question-container';
-          questionDiv.id = `q${q.index}`;
-          
-          // Get question text and options
-          const questionText = q.questionText || '';
-          const optionA = q.optionA || '';
-          const optionB = q.optionB || '';
-          const optionC = q.optionC || '';
-          const optionD = q.optionD || '';
-          
-          questionDiv.innerHTML = `
-            <div class="question-number">${q.index}</div>
-            <div class="question-text">${escapeHtml(questionText)}</div>
-            <div class="options-container">
-              <div class="option" onclick="selectOption('q${q.index}', 'a')">
-                <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
-                <div class="option-label">A) ${escapeHtml(optionA)}</div>
-              </div>
-              <div class="option" onclick="selectOption('q${q.index}', 'b')">
-                <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
-                <div class="option-label">B) ${escapeHtml(optionB)}</div>
-              </div>
-              <div class="option" onclick="selectOption('q${q.index}', 'c')">
-                <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
-                <div class="option-label">C) ${escapeHtml(optionC)}</div>
-              </div>
-              <div class="option" onclick="selectOption('q${q.index}', 'd')">
-                <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
-                <div class="option-label">D) ${escapeHtml(optionD)}</div>
-              </div>
-            </div>
-          `;
-          
-          questionsContainer.appendChild(questionDiv);
-        });
-      });
-      
-      questionLoading.style.display = 'none';
-    }
-    
-    // Helper function to escape HTML
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-    
-    function startTimer() {
-      clearInterval(timerInterval);
-      
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        
-        // Update timer display
-        document.getElementById('time').textContent = timeLeft;
-        
-        // Change timer color based on remaining time
-        const timerElement = document.getElementById('timer');
-        if (timeLeft <= Math.floor(testConfig.duration * 0.33)) {
-          timerElement.className = 'timer danger';
-        } else if (timeLeft <= Math.floor(testConfig.duration * 0.66)) {
-          timerElement.className = 'timer warning';
-        }
-        
-        // Show warning when 10 seconds left
-        if (timeLeft === 10) {
-          document.getElementById('autoSubmitWarning').style.display = 'block';
-        }
-        
-        // Update warning countdown
-        if (timeLeft <= 10 && timeLeft > 0) {
-          document.getElementById('warningCountdown').textContent = timeLeft;
-        }
-        
-        // Auto-submit when time is up
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          document.getElementById('autoSubmitWarning').style.display = 'none';
-          submitTest();
-        }
-      }, 1000);
-    }
-    
-    function selectOption(questionId, option) {
-      // Unselect all options for this question
-      const options = document.querySelectorAll(`input[name=${questionId}]`);
-      options.forEach(opt => {
-        opt.checked = false;
-        opt.parentElement.classList.remove('selected');
-      });
-      
-      // Select the clicked option
-      const selectedOption = document.getElementById(`${questionId}${option}`);
-      if (selectedOption) {
-        selectedOption.checked = true;
-        selectedOption.parentElement.classList.add('selected');
-      }
-      
-      // Update progress bar
-      updateProgressBar();
-    }
-    
-    function updateProgressBar() {
-      let answered = 0;
-      for (let i = 1; i <= totalQuestions; i++) {
-        const selected = document.querySelector(`input[name=q${i}]:checked`);
-        if (selected) answered++;
-      }
-      
-      const progressPercentage = (answered / totalQuestions) * 100;
-      document.getElementById('progressBar').style.width = `${progressPercentage}%`;
-    }
-    
-    function submitTest() {
-      clearInterval(timerInterval);
-      
-      const endTime = new Date().toISOString();
-      
-      let correct = 0;
-      let wrong = 0;
-      let unattempted = 0;
-      let totalMarks = 0;
-      let totalPossibleMarks = 0;
-      
-      // Check each question
-      for (let i = 1; i <= totalQuestions; i++) {
-        const questionId = `q${i}`;
-        const selected = document.querySelector(`input[name=${questionId}]:checked`);
-        const questionData = questionsData[i - 1];
-        const marksForQuestion = questionData.marksValue || testConfig.correctMark;
-        
-        totalPossibleMarks += marksForQuestion;
-        
-        if (!selected) {
-          unattempted++;
-        } else {
-          const userAnswer = selected.value.toLowerCase().trim();
-          const correctAnswer = correctAnswers[questionId];
-          
-          console.log(`Question ${i}: User Answer=${userAnswer}, Correct Answer=${correctAnswer}`);
-          
-          if (correctAnswer && userAnswer === correctAnswer) {
-            correct++;
-            totalMarks += marksForQuestion;
-          } else {
-            wrong++;
-            totalMarks -= (marksForQuestion * testConfig.wrongPenalty);
-          }
-        }
-      }
-      
-      // Ensure total marks is not negative
-      totalMarks = Math.max(0, totalMarks);
-      
-      // Calculate percentage
-      const percentage = totalPossibleMarks > 0 ? ((totalMarks / totalPossibleMarks) * 100).toFixed(2) : 0;
-      
-      // Generate test ID
-      const testId = "BUP-" + Date.now().toString().substr(-8);
-      
-      // Calculate time taken (in seconds)
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      const durationSeconds = Math.round((end - start) / 1000);
-      
-      // Show results
-      document.getElementById('finalScore').textContent = totalMarks.toFixed(1);
-      document.getElementById('correctCount').textContent = correct;
-      document.getElementById('wrongCount').textContent = wrong;
-      document.getElementById('unattemptedCount').textContent = unattempted;
-      document.getElementById('percentage').textContent = percentage + '%';
-      document.getElementById('resultName').textContent = document.getElementById('name').value;
-      document.getElementById('resultEmail').textContent = document.getElementById('email').value;
-      document.getElementById('testId').textContent = testId;
-      document.getElementById('testDuration').textContent = durationSeconds;
-      document.getElementById('questionsAttempted').textContent = totalQuestions - unattempted;
-      document.getElementById('totalQuestionsResult').textContent = totalQuestions;
-      
-      // Set result message based on score
-      let message = "";
-      const percentageNum = parseFloat(percentage);
-      if (percentageNum >= 80) {
-        message = "Excellent! You have a great chance of getting admission.";
-      } else if (percentageNum >= 60) {
-        message = "Good job! You have a decent chance of getting admission.";
-      } else if (percentageNum >= 40) {
-        message = "Fair performance. Consider practicing more.";
-      } else {
-        message = "You need more preparation. Keep practicing!";
-      }
-      document.getElementById('resultMessage').textContent = message;
-      
-      // Show result overlay
-      document.getElementById('resultOverlay').style.display = 'flex';
-      
-      // Start redirect countdown
-      startRedirectCountdown();
-      
-      // Prepare data for Google Sheets
-      const data = {
-        testId: testId,
-        name: document.getElementById("name").value,
-        email: document.getElementById("email").value,
-        phone: document.getElementById("phone").value,
-        startTime: startTime,
-        endTime: endTime,
-        duration: durationSeconds.toString(),
-        correct: correct,
-        wrong: wrong,
-        unattempted: unattempted,
-        totalMarks: totalMarks.toFixed(2),
-        percentage: percentage,
-        totalQuestions: totalQuestions,
-        source: "Google Sheets"
-      };
-      
-      // Send data to Google Sheets
-      sendToGoogleSheets(data);
-    }
-    
-    function sendToGoogleSheets(data) {
-      const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
-      
-      fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(data)
-      })
-      .then(res => res.json())
-      .then(d => {
-        console.log("Data sent to Google Sheets successfully:", d);
-      })
-      .catch(err => {
-        console.error("Failed to send data to Google Sheets:", err);
-      });
-    }
-    
-    function startRedirectCountdown() {
-      clearInterval(redirectTimer);
-      redirectSeconds = 5;
-      document.getElementById('redirectCountdown').textContent = redirectSeconds;
-      
-      redirectTimer = setInterval(() => {
-        redirectSeconds--;
-        document.getElementById('redirectCountdown').textContent = redirectSeconds;
-        
-        if (redirectSeconds <= 0) {
-          clearInterval(redirectTimer);
-          redirectNow();
-        }
-      }, 1000);
-    }
-    
-    function redirectNow() {
-      clearInterval(redirectTimer);
-      window.location.reload();
-    }
-    
-    function resetTest() {
-      if (confirm("Are you sure you want to reset the test? All your answers will be lost.")) {
-        // Clear all selections
-        for (let i = 1; i <= totalQuestions; i++) {
-          const options = document.querySelectorAll(`input[name=q${i}]`);
-          options.forEach(opt => {
-            opt.checked = false;
-            opt.parentElement.classList.remove('selected');
-          });
-        }
-        
-        // Reset timer
-        clearInterval(timerInterval);
-        timeLeft = testConfig.duration;
-        document.getElementById('time').textContent = timeLeft;
-        document.getElementById('timer').className = 'timer';
-        document.getElementById('autoSubmitWarning').style.display = 'none';
-        
-        // Reset progress bar
-        document.getElementById('progressBar').style.width = '0%';
-        
-        // Show form again
-        document.getElementById('testForm').style.display = 'block';
-        document.getElementById('quiz').style.display = 'none';
-        
-        // Reset form fields
-        document.getElementById('name').value = '';
-        document.getElementById('email').value = '';
-        document.getElementById('phone').value = '';
-      }
-    }
-    
-    function showQuestionStats() {
-      const statsDiv = document.getElementById('adminStats');
-      const isVisible = statsDiv.style.display !== 'none';
-      
-      if (!isVisible) {
-        let statsHTML = `<h4>Question Statistics</h4>`;
-        statsHTML += `<p><strong>Total Questions:</strong> ${totalQuestions}</p>`;
-        statsHTML += `<p><strong>Loaded From:</strong> Google Sheets</p>`;
-        
-        if (questionSections.size > 0) {
-          statsHTML += `<p><strong>Sections:</strong></p><ul>`;
-          const sectionCounts = {};
-          questionsData.forEach(q => {
-            const type = q.Type || q.type || 'General';
-            sectionCounts[type] = (sectionCounts[type] || 0) + 1;
-          });
-          
-          Object.keys(sectionCounts).forEach(section => {
-            statsHTML += `<li>${section}: ${sectionCounts[section]} questions</li>`;
-          });
-          statsHTML += `</ul>`;
-        }
-        
-        // Show raw data for debugging
-        statsHTML += `<p><strong>Debug Data (first 3 questions):</strong></p>`;
-        statsHTML += `<pre style="font-size: 10px; max-height: 200px; overflow: auto; background: #f0f0f0; padding: 10px;">`;
-        questionsData.slice(0, 3).forEach((q, i) => {
-          statsHTML += `Question ${i + 1}:\n`;
-          statsHTML += `  Type: ${q.Type || q.type}\n`;
-          statsHTML += `  Question: ${q.Question || q.question || ''}\n`;
-          statsHTML += `  Option A: ${q['Option A'] || q.optionA || ''}\n`;
-          statsHTML += `  Option B: ${q['Option B'] || q.optionB || ''}\n`;
-          statsHTML += `  Option C: ${q['Option C'] || q.optionC || ''}\n`;
-          statsHTML += `  Option D: ${q['Option D'] || q.optionD || ''}\n`;
-          statsHTML += `  Answer: ${q.Answer || q.answer || ''}\n\n`;
-        });
-        statsHTML += `</pre>`;
-        
-        statsHTML += `<p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>`;
-        statsDiv.innerHTML = statsHTML;
-        statsDiv.style.display = 'block';
-      } else {
-        statsDiv.style.display = 'none';
-      }
-    }
-    
-    function exportResults() {
-      alert("Export feature would typically download a CSV file of all test results. This requires additional backend setup.");
-    }
-  </script>
+</script>
 </body>
 </html>
