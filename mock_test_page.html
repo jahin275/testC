@@ -870,22 +870,103 @@
       // Update progress bar
       updateProgressBar();
     }
+    // Add this function to process LaTeX in questions
+function processLaTeX(text) {
+  if (!text) return '';
+  
+  // Convert $...$ to \\(...\\) for MathJax inline math
+  text = text.replace(/\$(.*?)\$/g, '\\($1\\)');
+  
+  // Convert $$...$$ to \\[...\\] for MathJax display math
+  text = text.replace(/\$\$(.*?)\$\$/g, '\\[$1\\]');
+  
+  return text;
+}
     
     function displayQuestions() {
-      const questionsContainer = document.getElementById('questionsContainer');
-      const questionLoading = document.getElementById('questionLoading');
-      const quizError = document.getElementById('quizError');
+  const questionsContainer = document.getElementById('questionsContainer');
+  const questionLoading = document.getElementById('questionLoading');
+  const quizError = document.getElementById('quizError');
+  
+  // Clear previous questions
+  questionsContainer.innerHTML = '';
+  questionLoading.style.display = 'block';
+  quizError.style.display = 'none';
+  
+  if (questionsData.length === 0) {
+    questionLoading.style.display = 'none';
+    quizError.style.display = 'block';
+    return;
+  }
+  
+  // Group questions by type
+  const questionsByType = {};
+  questionsData.forEach((question, index) => {
+    const type = question.Type || question.type || 'General';
+    if (!questionsByType[type]) {
+      questionsByType[type] = [];
+    }
+    questionsByType[type].push({...question, index: index + 1});
+  });
+  
+  // Display questions by type
+  Object.keys(questionsByType).forEach(type => {
+    const typeQuestions = questionsByType[type];
+    
+    // Add section header
+    const sectionHeader = document.createElement('h3');
+    sectionHeader.className = 'section-title';
+    sectionHeader.style.fontSize = '1.3rem';
+    sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
+    questionsContainer.appendChild(sectionHeader);
+    
+    // Add questions for this section
+    typeQuestions.forEach(q => {
+      const questionDiv = document.createElement('div');
+      questionDiv.className = 'question-container';
+      questionDiv.id = `q${q.index}`;
       
-      // Clear previous questions
-      questionsContainer.innerHTML = '';
-      questionLoading.style.display = 'block';
-      quizError.style.display = 'none';
+      // Process LaTeX in question and options
+      const questionText = processLaTeX(q.questionText || '');
+      const optionA = processLaTeX(q.optionA || '');
+      const optionB = processLaTeX(q.optionB || '');
+      const optionC = processLaTeX(q.optionC || '');
+      const optionD = processLaTeX(q.optionD || '');
       
-      if (questionsData.length === 0) {
-        questionLoading.style.display = 'none';
-        quizError.style.display = 'block';
-        return;
-      }
+      questionDiv.innerHTML = `
+        <div class="question-number">${q.index}</div>
+        <div class="question-text">${escapeHtml(questionText)}</div>
+        <div class="options-container">
+          <div class="option" onclick="selectOption('q${q.index}', 'a')">
+            <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
+            <div class="option-label">A) ${escapeHtml(optionA)}</div>
+          </div>
+          <div class="option" onclick="selectOption('q${q.index}', 'b')">
+            <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
+            <div class="option-label">B) ${escapeHtml(optionB)}</div>
+          </div>
+          <div class="option" onclick="selectOption('q${q.index}', 'c')">
+            <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
+            <div class="option-label">C) ${escapeHtml(optionC)}</div>
+          </div>
+          <div class="option" onclick="selectOption('q${q.index}', 'd')">
+            <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
+            <div class="option-label">D) ${escapeHtml(optionD)}</div>
+          </div>
+        </div>
+      `;
+      
+      questionsContainer.appendChild(questionDiv);
+    });
+  });
+  
+  questionLoading.style.display = 'none';
+  
+  // Trigger MathJax rendering
+  if (window.MathJax) {
+    MathJax.typeset();
+  }
+}
       
       // Group questions by type
       const questionsByType = {};
