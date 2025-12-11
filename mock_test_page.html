@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BUP Admission Test</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-  
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
   <style>
     * {
       margin: 0;
@@ -665,18 +664,6 @@
   </div>
 
  <script>
-  // Add MathJax configuration
-  window.MathJax = {
-    tex: {
-      inlineMath: [['\\(', '\\)']],
-      displayMath: [['$$', '$$']],
-      processEscapes: true
-    },
-    options: {
-      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
-    }
-  };
-
   // Global variables
   let startTime;
   let timerInterval;
@@ -750,6 +737,8 @@
             answer = String(q.Answer).trim().toLowerCase();
           } else if (q.ANSWER) {
             answer = String(q.ANSWER).trim().toLowerCase();
+          } else if (q['Answer']) {
+            answer = String(q['Answer']).trim().toLowerCase();
           }
           
           if (answer) {
@@ -757,18 +746,18 @@
           }
           
           // Get question type
-          const type = q.Type || q.type || 'General';
+          const type = q.Type || q.type || q['Type'] || 'General';
           questionSections.add(type);
           
           // Store marks per question
-          q.marksValue = parseFloat(q.Marks || q.marks || testConfig.correctMark) || testConfig.correctMark;
+          q.marksValue = parseFloat(q.Marks || q.marks || q['Marks'] || testConfig.correctMark) || testConfig.correctMark;
           
           // Store question text and options with LaTeX processing
-          q.questionText = processLaTeX(q.Question || q.question || '');
-          q.optionA = processLaTeX(q['Option A'] || q.optiona || q['option a'] || '');
-          q.optionB = processLaTeX(q['Option B'] || q.optionb || q['option b'] || '');
-          q.optionC = processLaTeX(q['Option C'] || q.optionc || q['option c'] || '');
-          q.optionD = processLaTeX(q['Option D'] || q.optiond || q['option d'] || '');
+          q.questionText = processLaTeX(q.Question || q.question || q['Question'] || '');
+          q.optionA = processLaTeX(q['Option A'] || q.optiona || q['option a'] || q.optionA || '');
+          q.optionB = processLaTeX(q['Option B'] || q.optionb || q['option b'] || q.optionB || '');
+          q.optionC = processLaTeX(q['Option C'] || q.optionc || q['option c'] || q.optionC || '');
+          q.optionD = processLaTeX(q['Option D'] || q.optiond || q['option d'] || q.optionD || '');
         });
         
         console.log(`Successfully loaded ${totalQuestions} questions from Google Sheets`);
@@ -792,7 +781,7 @@
       // Show error message
       document.getElementById('formLoading').style.display = 'none';
       document.getElementById('formError').style.display = 'block';
-      document.getElementById('errorMessage').textContent = `Error: ${error.message}. Please check: 1) Google Sheets is shared publicly, 2) Sheet name is "Questions", 3) Columns are properly formatted.`;
+      document.getElementById('errorMessage').textContent = `Error: ${error.message}. Please check the browser console for more details.`;
       document.getElementById('questionSourceInfo').textContent = 'Failed to load questions from Google Sheets';
       document.getElementById('startTestBtn').disabled = true;
     }
@@ -810,7 +799,7 @@
       // Count questions per section
       const sectionCounts = {};
       questionsData.forEach(q => {
-        const type = q.Type || q.type || 'General';
+        const type = q.Type || q.type || q['Type'] || 'General';
         sectionCounts[type] = (sectionCounts[type] || 0) + 1;
       });
       
@@ -915,7 +904,7 @@
     // Group questions by type
     const questionsByType = {};
     questionsData.forEach((question, index) => {
-      const type = question.Type || question.type || 'General';
+      const type = question.Type || question.type || question['Type'] || 'General';
       if (!questionsByType[type]) {
         questionsByType[type] = [];
       }
@@ -969,10 +958,8 @@
     questionLoading.style.display = 'none';
     
     // Re-render MathJax after loading questions
-    if (window.MathJax && MathJax.typeset) {
-      setTimeout(() => {
-        MathJax.typeset();
-      }, 100);
+    if (window.MathJax && MathJax.typesetPromise) {
+      MathJax.typesetPromise();
     }
   }
   
@@ -1239,7 +1226,7 @@
         statsHTML += `<p><strong>Sections:</strong></p><ul>`;
         const sectionCounts = {};
         questionsData.forEach(q => {
-          const type = q.Type || q.type || 'General';
+          const type = q.Type || q.type || q['Type'] || 'General';
           sectionCounts[type] = (sectionCounts[type] || 0) + 1;
         });
         
@@ -1254,13 +1241,13 @@
       statsHTML += `<pre style="font-size: 10px; max-height: 200px; overflow: auto; background: #f0f0f0; padding: 10px;">`;
       questionsData.slice(0, 3).forEach((q, i) => {
         statsHTML += `Question ${i + 1}:\n`;
-        statsHTML += `  Type: ${q.Type || q.type}\n`;
-        statsHTML += `  Question: ${q.Question || q.question || ''}\n`;
+        statsHTML += `  Type: ${q.Type || q.type || q['Type']}\n`;
+        statsHTML += `  Question: ${q.Question || q.question || q['Question'] || ''}\n`;
         statsHTML += `  Option A: ${q['Option A'] || q.optionA || ''}\n`;
         statsHTML += `  Option B: ${q['Option B'] || q.optionB || ''}\n`;
         statsHTML += `  Option C: ${q['Option C'] || q.optionC || ''}\n`;
         statsHTML += `  Option D: ${q['Option D'] || q.optionD || ''}\n`;
-        statsHTML += `  Answer: ${q.Answer || q.answer || ''}\n\n`;
+        statsHTML += `  Answer: ${q.Answer || q.answer || q['Answer'] || ''}\n\n`;
       });
       statsHTML += `</pre>`;
       
