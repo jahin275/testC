@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BUP Admission Test</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- MathJax for LaTeX support -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true,
+        processEnvironments: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
   <style>
     * {
       margin: 0;
@@ -435,6 +450,51 @@
       color: #ff4500;
       animation: pulse 1.5s infinite;
     }
+    
+    /* Loading indicator */
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: #ff8c00;
+    }
+    
+    .loading-indicator i {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    /* Question loading indicator */
+    .question-loading {
+      text-align: center;
+      padding: 20px;
+      color: #ff8c00;
+    }
+    
+    /* Error message */
+    .error-alert {
+      background-color: #ffebee;
+      border: 2px solid #ff5252;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+      color: #d32f2f;
+    }
+    
+    .error-alert i {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+    
+    /* Admin panel */
+    .admin-panel {
+      background-color: #f5f5f5;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      border: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
@@ -471,28 +531,42 @@
         <div class="test-info">
           <div class="info-item">
             <i class="fas fa-clock"></i>
-            <span>Test Duration: 30 seconds</span>
+            <span>Test Duration: <span id="testDurationInfo">30</span> seconds</span>
           </div>
           <div class="info-item">
             <i class="fas fa-question-circle"></i>
-            <span>Total Questions: 10</span>
+            <span>Total Questions: <span id="totalQuestionsCount">Loading...</span></span>
           </div>
           <div class="info-item">
             <i class="fas fa-check-circle"></i>
-            <span>Marking: +1 for correct, -0.5 for wrong</span>
+            <span>Marking: +<span id="correctMarking">1</span> for correct, -<span id="wrongMarking">0.5</span> for wrong</span>
           </div>
           <div class="info-item">
             <i class="fas fa-book"></i>
-            <span>Sections: English (3), GK (2), Aptitude (5)</span>
+            <span>Sections: <span id="sectionsInfo">Loading...</span></span>
           </div>
           <div class="info-item">
             <i class="fas fa-exclamation-triangle"></i>
-            <span>Auto-submission after 30 seconds</span>
+            <span id="autoSubmitInfo">Auto-submission after 30 seconds</span>
           </div>
         </div>
         
+        <div class="loading-indicator" id="formLoading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading questions from Google Sheets...</p>
+        </div>
+        
+        <div class="error-alert" id="formError" style="display: none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <h3>Unable to Load Questions</h3>
+          <p id="errorMessage">Failed to load questions from Google Sheets. Please try again later.</p>
+          <button type="button" class="btn" onclick="loadQuestions()" style="margin-top: 10px; background: linear-gradient(to right, #666, #444);">
+            <i class="fas fa-redo"></i> Retry Loading Questions
+          </button>
+        </div>
+        
         <div style="text-align: center;">
-          <button type="button" class="btn" onclick="validateAndStartTest()">
+          <button type="button" class="btn" onclick="validateAndStartTest()" id="startTestBtn" disabled>
             <i class="fas fa-play-circle"></i> Start Test
           </button>
         </div>
@@ -514,247 +588,22 @@
         
         <h2 class="section-title"><i class="fas fa-pencil-alt"></i> Test Questions</h2>
         
-        <!-- English Questions -->
-        <h3 class="section-title" style="font-size: 1.3rem;"><i class="fas fa-language"></i> English Section (3 Questions)</h3>
-        
-        <div class="question-container" id="q1">
-          <div class="question-number">1</div>
-          <div class="question-text">Choose the correct synonym for "Benevolent":</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q1', 'a')">
-              <input type="radio" name="q1" value="a" id="q1a">
-              <div class="option-label">A) Kind</div>
-            </div>
-            <div class="option" onclick="selectOption('q1', 'b')">
-              <input type="radio" name="q1" value="b" id="q1b">
-              <div class="option-label">B) Hostile</div>
-            </div>
-            <div class="option" onclick="selectOption('q1', 'c')">
-              <input type="radio" name="q1" value="c" id="q1c">
-              <div class="option-label">C) Greedy</div>
-            </div>
-            <div class="option" onclick="selectOption('q1', 'd')">
-              <input type="radio" name="q1" value="d" id="q1d">
-              <div class="option-label">D) Neutral</div>
-            </div>
-          </div>
+        <div class="question-loading" id="questionLoading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading questions...</p>
         </div>
         
-        <div class="question-container" id="q2">
-          <div class="question-number">2</div>
-          <div class="question-text">Which sentence is grammatically correct?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q2', 'a')">
-              <input type="radio" name="q2" value="a" id="q2a">
-              <div class="option-label">A) She don't like apples.</div>
-            </div>
-            <div class="option" onclick="selectOption('q2', 'b')">
-              <input type="radio" name="q2" value="b" id="q2b">
-              <div class="option-label">B) Neither of the boys are coming.</div>
-            </div>
-            <div class="option" onclick="selectOption('q2', 'c')">
-              <input type="radio" name="q2" value="c" id="q2c">
-              <div class="option-label">C) The team is playing well.</div>
-            </div>
-            <div class="option" onclick="selectOption('q2', 'd')">
-              <input type="radio" name="q2" value="d" id="q2d">
-              <div class="option-label">D) Each of the students were present.</div>
-            </div>
-          </div>
+        <div class="error-alert" id="quizError" style="display: none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <h3>Unable to Load Questions</h3>
+          <p>There was an error loading the questions. Please refresh the page and try again.</p>
         </div>
         
-        <div class="question-container" id="q3">
-          <div class="question-number">3</div>
-          <div class="question-text">Identify the correctly spelled word:</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q3', 'a')">
-              <input type="radio" name="q3" value="a" id="q3a">
-              <div class="option-label">A) Accommodate</div>
-            </div>
-            <div class="option" onclick="selectOption('q3', 'b')">
-              <input type="radio" name="q3" value="b" id="q3b">
-              <div class="option-label">B) Acommodate</div>
-            </div>
-            <div class="option" onclick="selectOption('q3', 'c')">
-              <input type="radio" name="q3" value="c" id="q3c">
-              <div class="option-label">C) Accomodate</div>
-            </div>
-            <div class="option" onclick="selectOption('q3', 'd')">
-              <input type="radio" name="q3" value="d" id="q3d">
-              <div class="option-label">D) Acomodate</div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- GK Questions -->
-        <h3 class="section-title" style="font-size: 1.3rem;"><i class="fas fa-globe"></i> General Knowledge (2 Questions)</h3>
-        
-        <div class="question-container" id="q4">
-          <div class="question-number">4</div>
-          <div class="question-text">What is the capital city of Bangladesh?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q4', 'a')">
-              <input type="radio" name="q4" value="a" id="q4a">
-              <div class="option-label">A) Chittagong</div>
-            </div>
-            <div class="option" onclick="selectOption('q4', 'b')">
-              <input type="radio" name="q4" value="b" id="q4b">
-              <div class="option-label">B) Dhaka</div>
-            </div>
-            <div class="option" onclick="selectOption('q4', 'c')">
-              <input type="radio" name="q4" value="c" id="q4c">
-              <div class="option-label">C) Khulna</div>
-            </div>
-            <div class="option" onclick="selectOption('q4', 'd')">
-              <input type="radio" name="q4" value="d" id="q4d">
-              <div class="option-label">D) Sylhet</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="question-container" id="q5">
-          <div class="question-number">5</div>
-          <div class="question-text">Who is known as the "Father of the Nation" in Bangladesh?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q5', 'a')">
-              <input type="radio" name="q5" value="a" id="q5a">
-              <div class="option-label">A) Sheikh Hasina</div>
-            </div>
-            <div class="option" onclick="selectOption('q5', 'b')">
-              <input type="radio" name="q5" value="b" id="q5b">
-              <div class="option-label">B) Ziaur Rahman</div>
-            </div>
-            <div class="option" onclick="selectOption('q5', 'c')">
-              <input type="radio" name="q5" value="c" id="q5c">
-              <div class="option-label">C) Bangabandhu Sheikh Mujibur Rahman</div>
-            </div>
-            <div class="option" onclick="selectOption('q5', 'd')">
-              <input type="radio" name="q5" value="d" id="q5d">
-              <div class="option-label">D) Hussain Muhammad Ershad</div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Aptitude Questions -->
-        <h3 class="section-title" style="font-size: 1.3rem;"><i class="fas fa-calculator"></i> Aptitude (5 Questions)</h3>
-        
-        <div class="question-container" id="q6">
-          <div class="question-number">6</div>
-          <div class="question-text">If a train travels at 60 km/h, how far will it travel in 2 hours and 30 minutes?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q6', 'a')">
-              <input type="radio" name="q6" value="a" id="q6a">
-              <div class="option-label">A) 120 km</div>
-            </div>
-            <div class="option" onclick="selectOption('q6', 'b')">
-              <input type="radio" name="q6" value="b" id="q6b">
-              <div class="option-label">B) 150 km</div>
-            </div>
-            <div class="option" onclick="selectOption('q6', 'c')">
-              <input type="radio" name="q6" value="c" id="q6c">
-              <div class="option-label">C) 180 km</div>
-            </div>
-            <div class="option" onclick="selectOption('q6', 'd')">
-              <input type="radio" name="q6" value="d" id="q6d">
-              <div class="option-label">D) 200 km</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="question-container" id="q7">
-          <div class="question-number">7</div>
-          <div class="question-text">What is 25% of 200?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q7', 'a')">
-              <input type="radio" name="q7" value="a" id="q7a">
-              <div class="option-label">A) 25</div>
-            </div>
-            <div class="option" onclick="selectOption('q7', 'b')">
-              <input type="radio" name="q7" value="b" id="q7b">
-              <div class="option-label">B) 50</div>
-            </div>
-            <div class="option" onclick="selectOption('q7', 'c')">
-              <input type="radio" name="q7" value="c" id="q7c">
-              <div class="option-label">C) 75</div>
-            </div>
-            <div class="option" onclick="selectOption('q7', 'd')">
-              <input type="radio" name="q7" value="d" id="q7d">
-              <div class="option-label">D) 100</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="question-container" id="q8">
-          <div class="question-number">8</div>
-          <div class="question-text">If 3x + 7 = 22, what is the value of x?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q8', 'a')">
-              <input type="radio" name="q8" value="a" id="q8a">
-              <div class="option-label">A) 3</div>
-            </div>
-            <div class="option" onclick="selectOption('q8', 'b')">
-              <input type="radio" name="q8" value="b" id="q8b">
-              <div class="option-label">B) 4</div>
-            </div>
-            <div class="option" onclick="selectOption('q8', 'c')">
-              <input type="radio" name="q8" value="c" id="q8c">
-              <div class="option-label">C) 5</div>
-            </div>
-            <div class="option" onclick="selectOption('q8', 'd')">
-              <input type="radio" name="q8" value="d" id="q8d">
-              <div class="option-label">D) 6</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="question-container" id="q9">
-          <div class="question-number">9</div>
-          <div class="question-text">What is the next number in the sequence: 2, 6, 12, 20, 30, ?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q9', 'a')">
-              <input type="radio" name="q9" value="a" id="q9a">
-              <div class="option-label">A) 40</div>
-            </div>
-            <div class="option" onclick="selectOption('q9', 'b')">
-              <input type="radio" name="q9" value="b" id="q9b">
-              <div class="option-label">B) 42</div>
-            </div>
-            <div class="option" onclick="selectOption('q9', 'c')">
-              <input type="radio" name="q9" value="c" id="q9c">
-              <div class="option-label">C) 44</div>
-            </div>
-            <div class="option" onclick="selectOption('q9', 'd')">
-              <input type="radio" name="q9" value="d" id="q9d">
-              <div class="option-label">D) 46</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="question-container" id="q10">
-          <div class="question-number">10</div>
-          <div class="question-text">A rectangle has a length of 10 cm and width of 6 cm. What is its area?</div>
-          <div class="options-container">
-            <div class="option" onclick="selectOption('q10', 'a')">
-              <input type="radio" name="q10" value="a" id="q10a">
-              <div class="option-label">A) 16 cm²</div>
-            </div>
-            <div class="option" onclick="selectOption('q10', 'b')">
-              <input type="radio" name="q10" value="b" id="q10b">
-              <div class="option-label">B) 32 cm²</div>
-            </div>
-            <div class="option" onclick="selectOption('q10', 'c')">
-              <input type="radio" name="q10" value="c" id="q10c">
-              <div class="option-label">C) 60 cm²</div>
-            </div>
-            <div class="option" onclick="selectOption('q10', 'd')">
-              <input type="radio" name="q10" value="d" id="q10d">
-              <div class="option-label">D) 80 cm²</div>
-            </div>
-          </div>
-        </div>
+        <!-- Questions will be dynamically inserted here -->
+        <div id="questionsContainer"></div>
         
         <div class="submit-section">
-          <button type="button" class="btn" onclick="submitTest()">
+          <button type="button" class="btn" onclick="submitTest()" id="submitTestBtn">
             <i class="fas fa-paper-plane"></i> Submit Test
           </button>
           <button type="button" class="btn" onclick="resetTest()" style="background: linear-gradient(to right, #777, #555);">
@@ -764,8 +613,29 @@
       </div>
     </div>
     
+    <!-- Admin Panel -->
+    <div class="admin-panel" id="adminPanel">
+      <h3 class="section-title"><i class="fas fa-cog"></i> Admin Controls</h3>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="btn" onclick="loadQuestions()" style="background: linear-gradient(to right, #666, #444);">
+          <i class="fas fa-sync-alt"></i> Refresh Questions
+        </button>
+        <button type="button" class="btn" onclick="showQuestionStats()" style="background: linear-gradient(to right, #2196F3, #1976D2);">
+          <i class="fas fa-chart-bar"></i> View Stats
+        </button>
+        <button type="button" class="btn" onclick="exportResults()" style="background: linear-gradient(to right, #4CAF50, #388E3C);">
+          <i class="fas fa-download"></i> Export Results
+        </button>
+      </div>
+      <div id="adminStats" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; display: none;">
+        <!-- Stats will appear here -->
+      </div>
+    </div>
+    
     <footer>
-      <p>BUP Admission Test Mock Platform &copy; 2023 | This is a practice test only</p>
+      <p>BUP Admission Test Mock Platform &copy; 2023 | All questions loaded from Google Sheets</p>
+      <p style="font-size: 0.8rem; margin-top: 5px;" id="questionSourceInfo">Loading question source info...</p>
+      <p style="font-size: 0.7rem; margin-top: 5px; color: #999;">Last updated: <span id="lastUpdated">--</span></p>
     </footer>
   </div>
 
@@ -800,6 +670,7 @@
         <p><strong>Email:</strong> <span id="resultEmail"></span></p>
         <p><strong>Test ID:</strong> <span id="testId"></span></p>
         <p><strong>Duration:</strong> <span id="testDuration"></span> seconds</p>
+        <p><strong>Questions Attempted:</strong> <span id="questionsAttempted"></span> of <span id="totalQuestionsResult"></span></p>
       </div>
       
       <div class="redirect-message" id="redirectMessage">
@@ -812,26 +683,147 @@
   </div>
 
   <script>
+    // Global variables
     let startTime;
     let timerInterval;
-    let timeLeft = 30; // 30 seconds total
-    const totalQuestions = 10;
+    let timeLeft = 30; // Default 30 seconds
+    let totalQuestions = 0;
+    let questionsData = [];
+    let correctAnswers = {};
     let redirectTimer;
     let redirectSeconds = 5;
-    
-    // Correct answers for each question
-    const correctAnswers = {
-      q1: 'a', // Kind
-      q2: 'c', // The team is playing well
-      q3: 'a', // Accommodate
-      q4: 'b', // Dhaka
-      q5: 'c', // Bangabandhu Sheikh Mujibur Rahman
-      q6: 'b', // 150 km
-      q7: 'b', // 50
-      q8: 'c', // 5
-      q9: 'b', // 42
-      q10: 'c' // 60 cm²
+    let questionSections = new Set();
+    let testConfig = {
+      duration: 30,
+      correctMark: 1,
+      wrongPenalty: 0.5
     };
+    
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      loadQuestions();
+    });
+    
+    // Fetch questions from Google Sheets
+    async function loadQuestions() {
+      try {
+        // Show loading state
+        document.getElementById('formLoading').style.display = 'block';
+        document.getElementById('formError').style.display = 'none';
+        document.getElementById('startTestBtn').disabled = true;
+        document.getElementById('questionSourceInfo').textContent = 'Connecting to Google Sheets...';
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        
+        const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.questions && result.questions.length > 0) {
+          questionsData = result.questions;
+          totalQuestions = questionsData.length;
+          
+          // Clear previous data
+          correctAnswers = {};
+          questionSections.clear();
+          
+          // Extract correct answers and sections
+          questionsData.forEach((q, index) => {
+            const questionId = `q${index + 1}`;
+            if (q.answer && typeof q.answer === 'string') {
+              correctAnswers[questionId] = q.answer.toLowerCase().trim();
+            }
+            
+            if (q.type && typeof q.type === 'string') {
+              questionSections.add(q.type.trim());
+            }
+            
+            // Store marks per question if available
+            if (q.marks && !isNaN(parseFloat(q.marks))) {
+              q.marksValue = parseFloat(q.marks);
+            } else {
+              q.marksValue = testConfig.correctMark;
+            }
+          });
+          
+          console.log(`Successfully loaded ${totalQuestions} questions from Google Sheets`);
+          
+          // Update UI with loaded data
+          updateFormInfo();
+          
+          // Enable start button
+          document.getElementById('startTestBtn').disabled = false;
+          document.getElementById('formLoading').style.display = 'none';
+          document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
+          document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+          
+        } else {
+          throw new Error("No questions found in Google Sheets or invalid response format");
+        }
+      } catch (error) {
+        console.error("Error loading questions from Google Sheets:", error);
+        
+        // Show error message
+        document.getElementById('formLoading').style.display = 'none';
+        document.getElementById('formError').style.display = 'block';
+        document.getElementById('errorMessage').textContent = `Error: ${error.message}. Please check: 1) Google Sheets is shared publicly, 2) Sheet name is "Questions", 3) Columns are properly formatted.`;
+        document.getElementById('questionSourceInfo').textContent = 'Failed to load questions from Google Sheets';
+        document.getElementById('startTestBtn').disabled = true;
+      }
+    }
+    
+    function updateFormInfo() {
+      // Update total questions count
+      document.getElementById('totalQuestionsCount').textContent = totalQuestions;
+      
+      // Update sections info
+      const sectionsArray = Array.from(questionSections);
+      let sectionsText = "";
+      
+      if (sectionsArray.length > 0) {
+        // Count questions per section
+        const sectionCounts = {};
+        questionsData.forEach(q => {
+          if (q.type) {
+            const type = q.type.trim();
+            sectionCounts[type] = (sectionCounts[type] || 0) + 1;
+          }
+        });
+        
+        // Create sections text
+        sectionsText = sectionsArray.map(section => {
+          const count = sectionCounts[section] || 0;
+          return `${section} (${count})`;
+        }).join(", ");
+      } else {
+        sectionsText = "All Subjects";
+      }
+      
+      document.getElementById('sectionsInfo').textContent = sectionsText;
+      
+      // Update test duration if configured in questions
+      const maxTimeFromQuestions = Math.max(...questionsData.map(q => q.time || 0));
+      if (maxTimeFromQuestions > 0) {
+        testConfig.duration = maxTimeFromQuestions;
+        timeLeft = testConfig.duration;
+        document.getElementById('testDurationInfo').textContent = testConfig.duration;
+        document.getElementById('time').textContent = testConfig.duration;
+        document.getElementById('autoSubmitInfo').textContent = `Auto-submission after ${testConfig.duration} seconds`;
+      }
+      
+      // Update marking scheme if available in questions
+      const marksArray = questionsData.map(q => q.marksValue || testConfig.correctMark);
+      if (marksArray.length > 0) {
+        const avgMark = marksArray.reduce((a, b) => a + b, 0) / marksArray.length;
+        document.getElementById('correctMarking').textContent = avgMark.toFixed(1);
+        document.getElementById('wrongMarking').textContent = (avgMark * 0.5).toFixed(1);
+      }
+    }
     
     function validateAndStartTest() {
       const name = document.getElementById('name').value.trim();
@@ -863,6 +855,13 @@
         valid = false;
       }
       
+      // Validate that questions are loaded
+      if (questionsData.length === 0) {
+        alert("Questions are not loaded. Please refresh the page or check your connection.");
+        loadQuestions();
+        valid = false;
+      }
+      
       if (valid) {
         startTest();
       }
@@ -876,9 +875,13 @@
       document.getElementById('quiz').style.display = 'block';
       
       // Reset timer display
+      timeLeft = testConfig.duration;
       document.getElementById('time').textContent = timeLeft;
       document.getElementById('timer').className = 'timer';
       document.getElementById('autoSubmitWarning').style.display = 'none';
+      
+      // Display questions
+      displayQuestions();
       
       // Start the timer
       startTimer();
@@ -887,7 +890,97 @@
       updateProgressBar();
     }
     
+    function displayQuestions() {
+      const questionsContainer = document.getElementById('questionsContainer');
+      const questionLoading = document.getElementById('questionLoading');
+      const quizError = document.getElementById('quizError');
+      
+      // Clear previous questions
+      questionsContainer.innerHTML = '';
+      questionLoading.style.display = 'block';
+      quizError.style.display = 'none';
+      
+      if (questionsData.length === 0) {
+        questionLoading.style.display = 'none';
+        quizError.style.display = 'block';
+        return;
+      }
+      
+      // Group questions by type
+      const questionsByType = {};
+      questionsData.forEach((question, index) => {
+        const type = question.type || 'General';
+        if (!questionsByType[type]) {
+          questionsByType[type] = [];
+        }
+        questionsByType[type].push({...question, index: index + 1});
+      });
+      
+      // Display questions by type
+      Object.keys(questionsByType).forEach(type => {
+        const typeQuestions = questionsByType[type];
+        
+        // Add section header
+        const sectionHeader = document.createElement('h3');
+        sectionHeader.className = 'section-title';
+        sectionHeader.style.fontSize = '1.3rem';
+        sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
+        questionsContainer.appendChild(sectionHeader);
+        
+        // Add questions for this section
+        typeQuestions.forEach(q => {
+          const questionDiv = document.createElement('div');
+          questionDiv.className = 'question-container';
+          questionDiv.id = `q${q.index}`;
+          
+          // Format LaTeX expressions if present
+          let questionText = q.question || '';
+          // Simple LaTeX formatting - replace $$ with MathJax format
+          questionText = questionText.replace(/\$\$(.*?)\$\$/g, '\\($1\\)');
+          
+          // Escape HTML but keep LaTeX
+          const tempDiv = document.createElement('div');
+          tempDiv.textContent = questionText;
+          questionText = tempDiv.innerHTML;
+          
+          questionDiv.innerHTML = `
+            <div class="question-number">${q.index}</div>
+            <div class="question-text">${questionText}</div>
+            <div class="options-container">
+              <div class="option" onclick="selectOption('q${q.index}', 'a')">
+                <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
+                <div class="option-label">A) ${q.optiona || ''}</div>
+              </div>
+              <div class="option" onclick="selectOption('q${q.index}', 'b')">
+                <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
+                <div class="option-label">B) ${q.optionb || ''}</div>
+              </div>
+              <div class="option" onclick="selectOption('q${q.index}', 'c')">
+                <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
+                <div class="option-label">C) ${q.optionc || ''}</div>
+              </div>
+              <div class="option" onclick="selectOption('q${q.index}', 'd')">
+                <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
+                <div class="option-label">D) ${q.optiond || ''}</div>
+              </div>
+            </div>
+          `;
+          
+          questionsContainer.appendChild(questionDiv);
+        });
+      });
+      
+      questionLoading.style.display = 'none';
+      
+      // Trigger MathJax rendering for LaTeX
+      if (window.MathJax) {
+        MathJax.typeset();
+      }
+    }
+    
     function startTimer() {
+      clearInterval(timerInterval);
+      
       timerInterval = setInterval(() => {
         timeLeft--;
         
@@ -896,9 +989,9 @@
         
         // Change timer color based on remaining time
         const timerElement = document.getElementById('timer');
-        if (timeLeft <= 10) {
+        if (timeLeft <= Math.floor(testConfig.duration * 0.33)) {
           timerElement.className = 'timer danger';
-        } else if (timeLeft <= 20) {
+        } else if (timeLeft <= Math.floor(testConfig.duration * 0.66)) {
           timerElement.className = 'timer warning';
         }
         
@@ -931,8 +1024,10 @@
       
       // Select the clicked option
       const selectedOption = document.getElementById(`${questionId}${option}`);
-      selectedOption.checked = true;
-      selectedOption.parentElement.classList.add('selected');
+      if (selectedOption) {
+        selectedOption.checked = true;
+        selectedOption.parentElement.classList.add('selected');
+      }
       
       // Update progress bar
       updateProgressBar();
@@ -957,27 +1052,42 @@
       let correct = 0;
       let wrong = 0;
       let unattempted = 0;
+      let totalMarks = 0;
+      let totalPossibleMarks = 0;
       
       // Check each question
       for (let i = 1; i <= totalQuestions; i++) {
         const questionId = `q${i}`;
         const selected = document.querySelector(`input[name=${questionId}]:checked`);
+        const questionData = questionsData[i - 1];
+        const marksForQuestion = questionData.marksValue || testConfig.correctMark;
+        
+        totalPossibleMarks += marksForQuestion;
         
         if (!selected) {
           unattempted++;
-        } else if (selected.value === correctAnswers[questionId]) {
-          correct++;
         } else {
-          wrong++;
+          const userAnswer = selected.value.toLowerCase().trim();
+          const correctAnswer = correctAnswers[questionId];
+          
+          if (correctAnswer && userAnswer === correctAnswer) {
+            correct++;
+            totalMarks += marksForQuestion;
+          } else {
+            wrong++;
+            totalMarks -= (marksForQuestion * testConfig.wrongPenalty);
+          }
         }
       }
       
-      // Calculate marks (1 for correct, -0.5 for wrong)
-      const totalMarks = correct - (wrong * 0.5);
-      const percentage = ((totalMarks / totalQuestions) * 100).toFixed(2);
+      // Ensure total marks is not negative
+      totalMarks = Math.max(0, totalMarks);
+      
+      // Calculate percentage
+      const percentage = totalPossibleMarks > 0 ? ((totalMarks / totalPossibleMarks) * 100).toFixed(2) : 0;
       
       // Generate test ID
-      const testId = "BUP-" + Date.now().toString().substr(-6);
+      const testId = "BUP-" + Date.now().toString().substr(-8);
       
       // Calculate time taken (in seconds)
       const start = new Date(startTime);
@@ -994,14 +1104,17 @@
       document.getElementById('resultEmail').textContent = document.getElementById('email').value;
       document.getElementById('testId').textContent = testId;
       document.getElementById('testDuration').textContent = durationSeconds;
+      document.getElementById('questionsAttempted').textContent = totalQuestions - unattempted;
+      document.getElementById('totalQuestionsResult').textContent = totalQuestions;
       
       // Set result message based on score
       let message = "";
-      if (totalMarks >= 8) {
+      const percentageNum = parseFloat(percentage);
+      if (percentageNum >= 80) {
         message = "Excellent! You have a great chance of getting admission.";
-      } else if (totalMarks >= 6) {
+      } else if (percentageNum >= 60) {
         message = "Good job! You have a decent chance of getting admission.";
-      } else if (totalMarks >= 4) {
+      } else if (percentageNum >= 40) {
         message = "Fair performance. Consider practicing more.";
       } else {
         message = "You need more preparation. Keep practicing!";
@@ -1027,7 +1140,9 @@
         wrong: wrong,
         unattempted: unattempted,
         totalMarks: totalMarks.toFixed(2),
-        percentage: percentage
+        percentage: percentage,
+        totalQuestions: totalQuestions,
+        source: "Google Sheets"
       };
       
       // Send data to Google Sheets
@@ -1035,7 +1150,6 @@
     }
     
     function sendToGoogleSheets(data) {
-      // Using the provided Google Apps Script URL
       const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
       
       fetch(url, {
@@ -1044,11 +1158,17 @@
         body: JSON.stringify(data)
       })
       .then(res => res.json())
-      .then(d => console.log("Data sent to Google Sheets successfully"))
-      .catch(err => console.error("Failed to send data:", err));
+      .then(d => {
+        console.log("Data sent to Google Sheets successfully:", d);
+      })
+      .catch(err => {
+        console.error("Failed to send data to Google Sheets:", err);
+        // Still show results even if sending fails
+      });
     }
     
     function startRedirectCountdown() {
+      clearInterval(redirectTimer);
       redirectSeconds = 5;
       document.getElementById('redirectCountdown').textContent = redirectSeconds;
       
@@ -1065,7 +1185,7 @@
     
     function redirectNow() {
       clearInterval(redirectTimer);
-      window.location.href = "index.html";
+      window.location.reload(); // Reload to start fresh
     }
     
     function resetTest() {
@@ -1081,7 +1201,7 @@
         
         // Reset timer
         clearInterval(timerInterval);
-        timeLeft = 30;
+        timeLeft = testConfig.duration;
         document.getElementById('time').textContent = timeLeft;
         document.getElementById('timer').className = 'timer';
         document.getElementById('autoSubmitWarning').style.display = 'none';
@@ -1092,7 +1212,47 @@
         // Show form again
         document.getElementById('testForm').style.display = 'block';
         document.getElementById('quiz').style.display = 'none';
+        
+        // Reset form fields
+        document.getElementById('name').value = '';
+        document.getElementById('email').value = '';
+        document.getElementById('phone').value = '';
       }
+    }
+    
+    function showQuestionStats() {
+      const statsDiv = document.getElementById('adminStats');
+      const isVisible = statsDiv.style.display !== 'none';
+      
+      if (!isVisible) {
+        let statsHTML = `<h4>Question Statistics</h4>`;
+        statsHTML += `<p><strong>Total Questions:</strong> ${totalQuestions}</p>`;
+        statsHTML += `<p><strong>Loaded From:</strong> Google Sheets</p>`;
+        
+        if (questionSections.size > 0) {
+          statsHTML += `<p><strong>Sections:</strong></p><ul>`;
+          const sectionCounts = {};
+          questionsData.forEach(q => {
+            const type = q.type || 'General';
+            sectionCounts[type] = (sectionCounts[type] || 0) + 1;
+          });
+          
+          Object.keys(sectionCounts).forEach(section => {
+            statsHTML += `<li>${section}: ${sectionCounts[section]} questions</li>`;
+          });
+          statsHTML += `</ul>`;
+        }
+        
+        statsHTML += `<p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>`;
+        statsDiv.innerHTML = statsHTML;
+        statsDiv.style.display = 'block';
+      } else {
+        statsDiv.style.display = 'none';
+      }
+    }
+    
+    function exportResults() {
+      alert("Export feature would typically download a CSV file of all test results. This requires additional backend setup.");
     }
   </script>
 </body>
