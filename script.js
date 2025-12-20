@@ -31,29 +31,24 @@ document.addEventListener('DOMContentLoaded', function() {
     loadQuestions();
     setupEventListeners();
     
-    // Setup touch/click events for better mobile support
+    // Setup touch events for better mobile support
     setupTouchEvents();
     
-    // Prevent accidental refresh/swipe
-    preventAccidentalActions();
+    // Setup scroll handling
+    setupScrollHandling();
 });
 
 // Set up mobile viewport
 function setupMobileViewport() {
     const viewport = document.querySelector('meta[name="viewport"]');
     if (viewport) {
-        viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
+        viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes";
     }
 }
 
 // Set up event listeners
 function setupEventListeners() {
-    // Input validation on blur
-    document.getElementById('name').addEventListener('blur', validateName);
-    document.getElementById('email').addEventListener('blur', validateEmail);
-    document.getElementById('phone').addEventListener('blur', validatePhone);
-    
-    // Input validation on input for real-time feedback
+    // Input validation
     document.getElementById('name').addEventListener('input', validateName);
     document.getElementById('email').addEventListener('input', validateEmail);
     document.getElementById('phone').addEventListener('input', validatePhone);
@@ -68,9 +63,7 @@ function setupEventListeners() {
     // Handle orientation change
     window.addEventListener('orientationchange', function() {
         setTimeout(function() {
-            // Update timer position on orientation change
             updateFixedTimer();
-            // Refresh MathJax rendering
             if (window.MathJax && MathJax.typesetPromise) {
                 MathJax.typesetPromise();
             }
@@ -79,13 +72,6 @@ function setupEventListeners() {
     
     // Handle resize
     window.addEventListener('resize', updateFixedTimer);
-    
-    // Prevent pinch zoom on test screen
-    document.addEventListener('touchmove', function(e) {
-        if (e.scale !== 1 && e.target.closest('#questionsContainer')) {
-            e.preventDefault();
-        }
-    }, { passive: false });
 }
 
 // Setup touch events for better mobile interaction
@@ -105,9 +91,29 @@ function setupTouchEvents() {
     }, { passive: true });
 }
 
-// Prevent accidental refresh, back button, or swipe
-function preventAccidentalActions() {
-    // Warn before leaving test
+// Setup scroll handling - FIXED FOR ANDROID
+function setupScrollHandling() {
+    // Allow all scrolling
+    document.addEventListener('touchmove', function(e) {
+        // Allow all touch moves for scrolling
+    }, { passive: true });
+    
+    // Prevent pull-to-refresh only on the test screen
+    let startY = 0;
+    document.addEventListener('touchstart', function(e) {
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', function(e) {
+        // Only prevent pull-to-refresh when at the top of the page
+        if (window.scrollY === 0 && e.touches[0].clientY > startY) {
+            // User is pulling down from the top - allow it for scrolling
+        }
+    }, { passive: true });
+}
+
+// Warn before leaving test
+function setupBeforeUnload() {
     window.addEventListener('beforeunload', function(e) {
         if (document.getElementById('quiz').style.display !== 'none') {
             e.preventDefault();
@@ -115,13 +121,6 @@ function preventAccidentalActions() {
             return e.returnValue;
         }
     });
-    
-    // Prevent pull-to-refresh on mobile during test
-    document.addEventListener('touchmove', function(e) {
-        if (document.getElementById('quiz').style.display !== 'none' && e.touches.length === 1) {
-            e.preventDefault();
-        }
-    }, { passive: false });
 }
 
 // Function to process LaTeX
@@ -408,7 +407,14 @@ function startTest() {
     // Update fixed timer position
     updateFixedTimer();
     
-    // Prevent scrolling to top
+    // Setup beforeunload warning
+    setupBeforeUnload();
+    
+    // Ensure body can scroll
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+    
+    // Scroll to top
     setTimeout(() => {
         window.scrollTo(0, 0);
     }, 100);
@@ -625,6 +631,26 @@ style.textContent = `
         from { top: 80px; opacity: 1; }
         to { top: -50px; opacity: 0; }
     }
+    
+    /* Ensure body can scroll */
+    body {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    /* Fix for Android scrolling */
+    html, body {
+        height: 100%;
+        overflow-x: hidden;
+    }
+    
+    #quiz {
+        overflow: visible !important;
+    }
+    
+    #questionsContainer {
+        overflow: visible !important;
+    }
 `;
 document.head.appendChild(style);
 
@@ -651,23 +677,6 @@ function selectOption(questionId, option) {
     // Update progress bar and answered count
     updateProgressBar();
     updateAnsweredCount();
-    
-    // Scroll to next question on mobile for better UX
-    if (isMobile) {
-        scrollToNextQuestion(questionId);
-    }
-}
-
-function scrollToNextQuestion(currentQuestionId) {
-    const currentIndex = parseInt(currentQuestionId.replace('q', ''));
-    if (currentIndex < totalQuestions) {
-        const nextQuestion = document.getElementById(`q${currentIndex + 1}`);
-        if (nextQuestion) {
-            setTimeout(() => {
-                nextQuestion.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 300);
-        }
-    }
 }
 
 function updateProgressBar() {
@@ -898,6 +907,9 @@ function resetTest() {
         document.getElementById('name').value = '';
         document.getElementById('email').value = '';
         document.getElementById('phone').value = '';
+        
+        // Remove beforeunload listener
+        window.removeEventListener('beforeunload', arguments.callee);
         
         // Scroll to top
         window.scrollTo(0, 0);
