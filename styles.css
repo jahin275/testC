@@ -733,11 +733,22 @@ footer {
 }
 
 /* Better scrolling on mobile */
+/* Better scrolling on mobile - FIXED FOR ANDROID */
 html {
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: touch !important;
   scroll-behavior: smooth;
+  overflow-y: scroll !important;
+  height: 100%;
 }
 
+/* Fix body scrolling */
+body {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  position: relative;
+  height: auto;
+  min-height: 100vh;
+}
 /* Landscape mode optimization */
 @media (orientation: landscape) and (max-height: 600px) {
   body {
