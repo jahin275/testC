@@ -1,7 +1,7 @@
 // Global variables
 let startTime;
 let timerInterval;
-let timeLeft = 1800; // 30 minutes in seconds (30 * 60)
+let timeLeft = 3600; // 60 minutes in seconds (60 * 60)
 let totalQuestions = 0;
 let questionsData = [];
 let correctAnswers = {};
@@ -9,17 +9,42 @@ let redirectTimer;
 let redirectSeconds = 5;
 let questionSections = new Set();
 let testConfig = {
-    duration: 1800, // 30 minutes in seconds
+    duration: 3600, // 60 minutes in seconds
     correctMark: 1,
-    wrongPenalty: 0.25,
-    allowNegative: true // Allow negative scores
+    wrongPenalty: 0.5, // 0.5 negative marks per wrong answer
+    allowNegative: true
 };
+
+// Mobile detection
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('BUP Test System Initialized');
+    console.log('Mobile device:', isMobile);
+    
+    // Setup viewport for mobile
+    if (isMobile) {
+        setupMobileViewport();
+    }
+    
     loadQuestions();
     setupEventListeners();
+    
+    // Setup touch/click events for better mobile support
+    setupTouchEvents();
+    
+    // Prevent accidental refresh/swipe
+    preventAccidentalActions();
 });
+
+// Set up mobile viewport
+function setupMobileViewport() {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+        viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
+    }
+}
 
 // Set up event listeners
 function setupEventListeners() {
@@ -28,12 +53,75 @@ function setupEventListeners() {
     document.getElementById('email').addEventListener('blur', validateEmail);
     document.getElementById('phone').addEventListener('blur', validatePhone);
     
+    // Input validation on input for real-time feedback
+    document.getElementById('name').addEventListener('input', validateName);
+    document.getElementById('email').addEventListener('input', validateEmail);
+    document.getElementById('phone').addEventListener('input', validatePhone);
+    
     // Enter key to start test
     document.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && document.getElementById('testForm').style.display !== 'none') {
             validateAndStartTest();
         }
     });
+    
+    // Handle orientation change
+    window.addEventListener('orientationchange', function() {
+        setTimeout(function() {
+            // Update timer position on orientation change
+            updateFixedTimer();
+            // Refresh MathJax rendering
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise();
+            }
+        }, 300);
+    });
+    
+    // Handle resize
+    window.addEventListener('resize', updateFixedTimer);
+    
+    // Prevent pinch zoom on test screen
+    document.addEventListener('touchmove', function(e) {
+        if (e.scale !== 1 && e.target.closest('#questionsContainer')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
+
+// Setup touch events for better mobile interaction
+function setupTouchEvents() {
+    // Add touch feedback to options
+    document.addEventListener('touchstart', function(e) {
+        if (e.target.closest('.option')) {
+            e.target.closest('.option').classList.add('touch-active');
+        }
+    }, { passive: true });
+    
+    document.addEventListener('touchend', function(e) {
+        const activeElement = document.querySelector('.option.touch-active');
+        if (activeElement) {
+            setTimeout(() => activeElement.classList.remove('touch-active'), 150);
+        }
+    }, { passive: true });
+}
+
+// Prevent accidental refresh, back button, or swipe
+function preventAccidentalActions() {
+    // Warn before leaving test
+    window.addEventListener('beforeunload', function(e) {
+        if (document.getElementById('quiz').style.display !== 'none') {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to leave? Your test progress will be lost.';
+            return e.returnValue;
+        }
+    });
+    
+    // Prevent pull-to-refresh on mobile during test
+    document.addEventListener('touchmove', function(e) {
+        if (document.getElementById('quiz').style.display !== 'none' && e.touches.length === 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
 
 // Function to process LaTeX
@@ -53,9 +141,10 @@ async function loadQuestions() {
         document.getElementById('formLoading').style.display = 'block';
         document.getElementById('formError').style.display = 'none';
         document.getElementById('startTestBtn').disabled = true;
-        document.getElementById('questionSourceInfo').textContent = 'Connecting to Google Sheets...';
+        document.getElementById('questionSourceInfo').textContent = 'Loading questions...';
         document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
         
+        // Try to load from Google Sheets
         const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
         
         const response = await fetch(url);
@@ -70,77 +159,117 @@ async function loadQuestions() {
             questionsData = result.questions;
             totalQuestions = questionsData.length;
             
-            console.log("Raw questions data:", questionsData);
+            console.log(`Loaded ${totalQuestions} questions from Google Sheets`);
             
-            // Clear previous data
-            correctAnswers = {};
-            questionSections.clear();
-            
-            // Process questions data
-            questionsData.forEach((q, index) => {
-                const questionId = `q${index + 1}`;
-                
-                // Normalize the answer - handle spaces and case
-                let answer = '';
-                if (q.answer) {
-                    answer = String(q.answer).trim().toLowerCase();
-                } else if (q.Answer) {
-                    answer = String(q.Answer).trim().toLowerCase();
-                } else if (q.ANSWER) {
-                    answer = String(q.ANSWER).trim().toLowerCase();
-                } else if (q['Answer']) {
-                    answer = String(q['Answer']).trim().toLowerCase();
-                }
-                
-                if (answer) {
-                    correctAnswers[questionId] = answer;
-                }
-                
-                // Get question type
-                const type = q.Type || q.type || q['Type'] || 'General';
-                questionSections.add(type);
-                
-                // Store marks per question
-                q.marksValue = parseFloat(q.Marks || q.marks || q['Marks'] || testConfig.correctMark) || testConfig.correctMark;
-                
-                // Store question text and options with LaTeX processing
-                q.questionText = processLaTeX(q.Question || q.question || q['Question'] || '');
-                q.optionA = processLaTeX(q['Option A'] || q.optiona || q['option a'] || q.optionA || '');
-                q.optionB = processLaTeX(q['Option B'] || q.optionb || q['option b'] || q.optionB || '');
-                q.optionC = processLaTeX(q['Option C'] || q.optionc || q['option c'] || q.optionC || '');
-                q.optionD = processLaTeX(q['Option D'] || q.optiond || q['option d'] || q.optionD || '');
-            });
-            
-            console.log(`Successfully loaded ${totalQuestions} questions from Google Sheets`);
-            
-            // Update UI with loaded data
-            updateFormInfo();
-            
-            // Enable start button
-            document.getElementById('startTestBtn').disabled = false;
-            document.getElementById('formLoading').style.display = 'none';
-            document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
-            document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+            // Process questions
+            processQuestions();
             
         } else {
-            throw new Error("No questions found in Google Sheets or invalid response format");
+            throw new Error("No questions found in Google Sheets");
         }
-    } catch (error) {
-        console.error("Error loading questions from Google Sheets:", error);
         
-        // Show error message
-        document.getElementById('formLoading').style.display = 'none';
-        document.getElementById('formError').style.display = 'block';
-        document.getElementById('errorMessage').textContent = `Error: ${error.message}. Please check the browser console for more details.`;
-        document.getElementById('questionSourceInfo').textContent = 'Failed to load questions from Google Sheets';
-        document.getElementById('startTestBtn').disabled = true;
+    } catch (error) {
+        console.error("Error loading questions:", error);
+        
+        // Fallback to sample questions
+        loadSampleQuestions();
     }
+}
+
+// Process questions data
+function processQuestions() {
+    // Clear previous data
+    correctAnswers = {};
+    questionSections.clear();
+    
+    // Process questions data
+    questionsData.forEach((q, index) => {
+        const questionId = `q${index + 1}`;
+        
+        // Normalize the answer
+        let answer = '';
+        if (q.answer) answer = String(q.answer).trim().toLowerCase();
+        else if (q.Answer) answer = String(q.Answer).trim().toLowerCase();
+        else if (q.ANSWER) answer = String(q.ANSWER).trim().toLowerCase();
+        else if (q['Answer']) answer = String(q['Answer']).trim().toLowerCase();
+        
+        if (answer) {
+            correctAnswers[questionId] = answer;
+        }
+        
+        // Get question type
+        const type = q.Type || q.type || q['Type'] || 'General';
+        questionSections.add(type);
+        
+        // Store marks per question
+        q.marksValue = parseFloat(q.Marks || q.marks || q['Marks'] || testConfig.correctMark) || testConfig.correctMark;
+        
+        // Store question text and options with LaTeX processing
+        q.questionText = processLaTeX(q.Question || q.question || q['Question'] || '');
+        q.optionA = processLaTeX(q['Option A'] || q.optiona || q['option a'] || q.optionA || '');
+        q.optionB = processLaTeX(q['Option B'] || q.optionb || q['option b'] || q.optionB || '');
+        q.optionC = processLaTeX(q['Option C'] || q.optionc || q['option c'] || q.optionC || '');
+        q.optionD = processLaTeX(q['Option D'] || q.optiond || q['option d'] || q.optionD || '');
+    });
+    
+    // Update UI with loaded data
+    updateFormInfo();
+    
+    // Enable start button
+    document.getElementById('startTestBtn').disabled = false;
+    document.getElementById('formLoading').style.display = 'none';
+    document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
+    document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+}
+
+// Load sample questions (fallback)
+function loadSampleQuestions() {
+    console.log('Loading sample questions...');
+    
+    questionsData = [
+        {
+            Question: "What is the capital of Bangladesh?",
+            "Option A": "Chittagong",
+            "Option B": "Dhaka", 
+            "Option C": "Khulna",
+            "Option D": "Rajshahi",
+            Answer: "B",
+            Type: "General Knowledge",
+            Marks: "1"
+        },
+        {
+            Question: "Solve: \\(2x + 3 = 11\\)",
+            "Option A": "x = 2",
+            "Option B": "x = 3",
+            "Option C": "x = 4", 
+            "Option D": "x = 5",
+            Answer: "C",
+            Type: "Mathematics",
+            Marks: "1"
+        },
+        {
+            Question: "Which planet is known as the Red Planet?",
+            "Option A": "Venus",
+            "Option B": "Mars",
+            "Option C": "Jupiter",
+            "Option D": "Saturn",
+            Answer: "B",
+            Type: "Science",
+            Marks: "1"
+        }
+    ];
+    
+    totalQuestions = questionsData.length;
+    
+    // Process the sample questions
+    processQuestions();
+    document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} sample questions`;
 }
 
 function updateFormInfo() {
     // Update total questions count
     document.getElementById('totalQuestionsCount').textContent = totalQuestions;
-    document.getElementById('totalQuestionsSticky').textContent = totalQuestions;
+    document.getElementById('fixedTotalQuestions').textContent = totalQuestions;
     document.getElementById('totalQuestionsResult').textContent = totalQuestions;
     
     // Update sections info
@@ -185,6 +314,12 @@ function validateName() {
     
     if (name === '') {
         errorElement.textContent = 'Please enter your full name';
+        errorElement.style.display = 'block';
+        return false;
+    }
+    
+    if (name.length < 3) {
+        errorElement.textContent = 'Name must be at least 3 characters';
         errorElement.style.display = 'block';
         return false;
     }
@@ -247,10 +382,18 @@ function startTest() {
     document.getElementById('testForm').style.display = 'none';
     document.getElementById('quiz').style.display = 'block';
     
-    // Reset timer display
+    // Show fixed timer
+    document.getElementById('fixedTimer').style.display = 'block';
+    
+    // Show mobile floating submit button if on mobile
+    if (isMobile) {
+        document.getElementById('mobileFloatingSubmit').style.display = 'block';
+    }
+    
+    // Reset timer
     timeLeft = testConfig.duration;
-    updateStickyTimerDisplay();
-    document.getElementById('stickyTimer').className = 'sticky-timer';
+    updateFixedTimerDisplay();
+    document.getElementById('fixedTimer').className = 'fixed-timer-container';
     document.getElementById('autoSubmitWarning').style.display = 'none';
     
     // Display questions
@@ -261,6 +404,24 @@ function startTest() {
     
     // Update progress bar
     updateProgressBar();
+    
+    // Update fixed timer position
+    updateFixedTimer();
+    
+    // Prevent scrolling to top
+    setTimeout(() => {
+        window.scrollTo(0, 0);
+    }, 100);
+}
+
+function updateFixedTimer() {
+    // Ensure timer is at top
+    const timer = document.getElementById('fixedTimer');
+    if (timer) {
+        timer.style.top = '0';
+        timer.style.left = '0';
+        timer.style.right = '0';
+    }
 }
 
 function displayQuestions() {
@@ -296,7 +457,8 @@ function displayQuestions() {
         // Add section header
         const sectionHeader = document.createElement('h3');
         sectionHeader.className = 'section-title';
-        sectionHeader.style.fontSize = '1.3rem';
+        sectionHeader.style.fontSize = '1.2rem';
+        sectionHeader.style.marginTop = '20px';
         sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
         questionsContainer.appendChild(sectionHeader);
         
@@ -337,7 +499,9 @@ function displayQuestions() {
     
     // Re-render MathJax after loading questions
     if (window.MathJax && MathJax.typesetPromise) {
-        MathJax.typesetPromise();
+        MathJax.typesetPromise().catch((err) => {
+            console.log('MathJax typeset promise error: ', err.message);
+        });
     }
 }
 
@@ -355,19 +519,33 @@ function startTimer() {
         timeLeft--;
         
         // Update timer display
-        updateStickyTimerDisplay();
+        updateFixedTimerDisplay();
+        
+        // Update timer progress
+        updateTimerProgress();
         
         // Change timer color based on remaining time
-        const timerElement = document.getElementById('stickyTimer');
-        if (timeLeft <= Math.floor(testConfig.duration * 0.33)) {
-            timerElement.className = 'sticky-timer danger';
-        } else if (timeLeft <= Math.floor(testConfig.duration * 0.66)) {
-            timerElement.className = 'sticky-timer warning';
+        const timerElement = document.getElementById('fixedTimer');
+        if (timeLeft <= Math.floor(testConfig.duration * 0.25)) { // Last 15 minutes
+            timerElement.className = 'fixed-timer-container danger';
+        } else if (timeLeft <= Math.floor(testConfig.duration * 0.5)) { // Last 30 minutes
+            timerElement.className = 'fixed-timer-container warning';
         }
         
         // Show warning when 10 minutes left
         if (timeLeft === 600) { // 10 minutes = 600 seconds
             document.getElementById('autoSubmitWarning').style.display = 'block';
+            showNotification('10 minutes remaining! Auto-submit soon.');
+        }
+        
+        // Show warning when 5 minutes left
+        if (timeLeft === 300) { // 5 minutes
+            showNotification('5 minutes remaining! Hurry up!');
+        }
+        
+        // Show warning when 1 minute left
+        if (timeLeft === 60) { // 1 minute
+            showNotification('1 minute remaining! Submit now!');
         }
         
         // Update warning countdown
@@ -380,22 +558,75 @@ function startTimer() {
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
             document.getElementById('autoSubmitWarning').style.display = 'none';
-            submitTest();
+            showNotification('Time is up! Auto-submitting...');
+            setTimeout(submitTest, 1000);
         }
     }, 1000);
 }
 
-function updateStickyTimerDisplay() {
+function updateFixedTimerDisplay() {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
     const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
-    document.getElementById('stickyTime').textContent = timeString;
-    
-    // Update progress bar on timer
-    const progressPercentage = (timeLeft / testConfig.duration) * 100;
-    document.getElementById('timerProgressFill').style.width = `${progressPercentage}%`;
+    document.getElementById('fixedTime').textContent = timeString;
 }
+
+function updateTimerProgress() {
+    const progressPercentage = (timeLeft / testConfig.duration) * 100;
+    document.getElementById('fixedTimerProgress').style.width = `${progressPercentage}%`;
+    
+    // Change progress bar color based on time
+    const progressFill = document.getElementById('fixedTimerProgress');
+    if (timeLeft <= testConfig.duration * 0.25) {
+        progressFill.style.background = 'linear-gradient(to right, #ff4500, #ff6a00)';
+    } else if (timeLeft <= testConfig.duration * 0.5) {
+        progressFill.style.background = 'linear-gradient(to right, #ff9800, #ffb74d)';
+    }
+}
+
+function showNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.innerHTML = `<i class="fas fa-bell"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #ff8c00;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        z-index: 10001;
+        font-weight: bold;
+        animation: slideDown 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Add CSS for notification animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideDown {
+        from { top: -50px; opacity: 0; }
+        to { top: 80px; opacity: 1; }
+    }
+    @keyframes slideUp {
+        from { top: 80px; opacity: 1; }
+        to { top: -50px; opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
 
 function selectOption(questionId, option) {
     // Unselect all options for this question
@@ -410,11 +641,33 @@ function selectOption(questionId, option) {
     if (selectedOption) {
         selectedOption.checked = true;
         selectedOption.parentElement.classList.add('selected');
+        
+        // Add haptic feedback on mobile
+        if (isMobile && navigator.vibrate) {
+            navigator.vibrate(50);
+        }
     }
     
     // Update progress bar and answered count
     updateProgressBar();
     updateAnsweredCount();
+    
+    // Scroll to next question on mobile for better UX
+    if (isMobile) {
+        scrollToNextQuestion(questionId);
+    }
+}
+
+function scrollToNextQuestion(currentQuestionId) {
+    const currentIndex = parseInt(currentQuestionId.replace('q', ''));
+    if (currentIndex < totalQuestions) {
+        const nextQuestion = document.getElementById(`q${currentIndex + 1}`);
+        if (nextQuestion) {
+            setTimeout(() => {
+                nextQuestion.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+    }
 }
 
 function updateProgressBar() {
@@ -435,6 +688,7 @@ function updateAnsweredCount() {
         if (selected) answered++;
     }
     
+    document.getElementById('fixedAnsweredCount').textContent = answered;
     document.getElementById('answeredCount').textContent = answered;
 }
 
@@ -466,8 +720,6 @@ function submitTest() {
             const userAnswer = selected.value.toLowerCase().trim();
             const correctAnswer = correctAnswers[questionId];
             
-            console.log(`Question ${i}: User Answer=${userAnswer}, Correct Answer=${correctAnswer}`);
-            
             if (correctAnswer && userAnswer === correctAnswer) {
                 correct++;
                 positiveMarks += marksForQuestion;
@@ -495,6 +747,13 @@ function submitTest() {
     const durationMinutes = (durationSeconds / 60).toFixed(2);
     
     // Show results
+    showResults(correct, wrong, unattempted, totalMarks, percentage, testId, durationMinutes, positiveMarks, negativeMarks);
+    
+    // Send data to Google Sheets
+    sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage, testId, durationSeconds, positiveMarks, negativeMarks);
+}
+
+function showResults(correct, wrong, unattempted, totalMarks, percentage, testId, durationMinutes, positiveMarks, negativeMarks) {
     document.getElementById('finalScore').textContent = totalMarks.toFixed(2);
     if (totalMarks < 0) {
         document.getElementById('finalScore').className = 'score-display negative';
@@ -538,17 +797,23 @@ function submitTest() {
     // Show result overlay
     document.getElementById('resultOverlay').style.display = 'flex';
     
+    // Hide fixed timer
+    document.getElementById('fixedTimer').style.display = 'none';
+    
     // Start redirect countdown
     startRedirectCountdown();
+}
+
+function sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage, testId, durationSeconds, positiveMarks, negativeMarks) {
+    const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
     
-    // Prepare data for Google Sheets
     const data = {
         testId: testId,
         name: document.getElementById("name").value,
         email: document.getElementById("email").value,
         phone: document.getElementById("phone").value,
         startTime: startTime,
-        endTime: endTime,
+        endTime: new Date().toISOString(),
         duration: durationSeconds.toString(),
         correct: correct,
         wrong: wrong,
@@ -558,16 +823,10 @@ function submitTest() {
         totalMarks: totalMarks.toFixed(2),
         percentage: percentage,
         totalQuestions: totalQuestions,
-        source: "Google Sheets",
-        timestamp: new Date().toISOString()
+        source: "BUP Test System",
+        timestamp: new Date().toISOString(),
+        device: isMobile ? "Mobile" : "Desktop"
     };
-    
-    // Send data to Google Sheets
-    sendToGoogleSheets(data);
-}
-
-function sendToGoogleSheets(data) {
-    const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
     
     fetch(url, {
         method: "POST",
@@ -618,13 +877,18 @@ function resetTest() {
         // Reset timer
         clearInterval(timerInterval);
         timeLeft = testConfig.duration;
-        updateStickyTimerDisplay();
-        document.getElementById('stickyTimer').className = 'sticky-timer';
+        updateFixedTimerDisplay();
+        document.getElementById('fixedTimer').className = 'fixed-timer-container';
         document.getElementById('autoSubmitWarning').style.display = 'none';
         
         // Reset progress bar and answered count
         document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('fixedAnsweredCount').textContent = '0';
         document.getElementById('answeredCount').textContent = '0';
+        
+        // Hide fixed timer and floating submit
+        document.getElementById('fixedTimer').style.display = 'none';
+        document.getElementById('mobileFloatingSubmit').style.display = 'none';
         
         // Show form again
         document.getElementById('testForm').style.display = 'block';
@@ -634,6 +898,9 @@ function resetTest() {
         document.getElementById('name').value = '';
         document.getElementById('email').value = '';
         document.getElementById('phone').value = '';
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
     }
 }
 
@@ -644,10 +911,10 @@ function showQuestionStats() {
     if (!isVisible) {
         let statsHTML = `<h4>Question Statistics</h4>`;
         statsHTML += `<p><strong>Total Questions:</strong> ${totalQuestions}</p>`;
-        statsHTML += `<p><strong>Loaded From:</strong> Google Sheets</p>`;
         statsHTML += `<p><strong>Test Duration:</strong> ${testConfig.duration / 60} minutes</p>`;
         statsHTML += `<p><strong>Marking System:</strong> +${testConfig.correctMark} / -${testConfig.wrongPenalty}</p>`;
         statsHTML += `<p><strong>Negative Scores Allowed:</strong> ${testConfig.allowNegative ? 'Yes' : 'No'}</p>`;
+        statsHTML += `<p><strong>Mobile Optimized:</strong> ${isMobile ? 'Yes (Currently on mobile)' : 'Yes (Currently on desktop)'}</p>`;
         
         if (questionSections.size > 0) {
             statsHTML += `<p><strong>Sections:</strong></p><ul>`;
@@ -663,21 +930,6 @@ function showQuestionStats() {
             statsHTML += `</ul>`;
         }
         
-        // Show raw data for debugging
-        statsHTML += `<p><strong>Debug Data (first 3 questions):</strong></p>`;
-        statsHTML += `<pre style="font-size: 10px; max-height: 200px; overflow: auto; background: #f0f0f0; padding: 10px;">`;
-        questionsData.slice(0, 3).forEach((q, i) => {
-            statsHTML += `Question ${i + 1}:\n`;
-            statsHTML += `  Type: ${q.Type || q.type || q['Type']}\n`;
-            statsHTML += `  Question: ${(q.Question || q.question || q['Question'] || '').substring(0, 100)}...\n`;
-            statsHTML += `  Option A: ${(q['Option A'] || q.optionA || '').substring(0, 50)}...\n`;
-            statsHTML += `  Option B: ${(q['Option B'] || q.optionB || '').substring(0, 50)}...\n`;
-            statsHTML += `  Option C: ${(q['Option C'] || q.optionC || '').substring(0, 50)}...\n`;
-            statsHTML += `  Option D: ${(q['Option D'] || q.optionD || '').substring(0, 50)}...\n`;
-            statsHTML += `  Answer: ${q.Answer || q.answer || q['Answer'] || ''}\n\n`;
-        });
-        statsHTML += `</pre>`;
-        
         statsHTML += `<p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>`;
         statsDiv.innerHTML = statsHTML;
         statsDiv.style.display = 'block';
@@ -687,6 +939,5 @@ function showQuestionStats() {
 }
 
 function exportResults() {
-    // In a real implementation, this would make an API call to get all results
     alert("Export feature would typically download a CSV file of all test results. This requires additional backend setup.");
 }
