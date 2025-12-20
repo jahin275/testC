@@ -197,7 +197,42 @@ header p {
   right: 15px;
   transform: rotate(15deg);
 }
+/* Banner Styles */
+.banner-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto 20px;
+  text-align: center;
+}
 
+.bup-banner {
+  max-width: 100%;
+  height: auto;
+  max-height: 150px;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border: 2px solid white;
+}
+
+/* Update header to accommodate banner */
+header {
+  padding: 15px 25px;
+}
+
+header h1 {
+  margin-bottom: 5px;
+  font-size: 1.8rem;
+}
+
+header p {
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+/* Remove old header icon */
+.header-icon {
+  display: none;
+}
 .content {
   padding: 25px;
 }
