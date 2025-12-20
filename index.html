@@ -2,14 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>BUP Admission Test</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
   <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
   <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#ff8c00">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Fixed Timer at the Top -->
+  <div class="fixed-timer-container" id="fixedTimer" style="display: none;">
+    <div class="fixed-timer">
+      <div class="timer-content">
+        <div class="timer-left">
+          <i class="fas fa-hourglass-half"></i>
+          <span class="timer-label">Time:</span>
+          <span class="timer-value" id="fixedTime">60:00</span>
+        </div>
+        <div class="timer-middle">
+          <div class="timer-progress">
+            <div class="timer-progress-fill" id="fixedTimerProgress"></div>
+          </div>
+        </div>
+        <div class="timer-right">
+          <i class="fas fa-check-circle"></i>
+          <span class="answered-count" id="fixedAnsweredCount">0</span>/<span id="fixedTotalQuestions">0</span>
+        </div>
+        <button class="timer-submit-btn" onclick="submitTest()">
+          <i class="fas fa-paper-plane"></i> Submit
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <header>
       <h1>BUP Admission Test</h1>
@@ -36,14 +65,14 @@
         
         <div class="form-group">
           <label for="phone" class="required">Phone Number</label>
-          <input type="text" id="phone" placeholder="Enter your phone number" required>
+          <input type="tel" id="phone" placeholder="Enter your phone number" required>
           <div class="error-message" id="phoneError">Please enter a valid phone number</div>
         </div>
         
         <div class="test-info">
           <div class="info-item">
             <i class="fas fa-clock"></i>
-            <span>Test Duration: <span id="testDurationInfo">30</span> minutes</span>
+            <span>Test Duration: <span id="testDurationInfo">60</span> minutes</span>
           </div>
           <div class="info-item">
             <i class="fas fa-question-circle"></i>
@@ -51,20 +80,25 @@
           </div>
           <div class="info-item">
             <i class="fas fa-check-circle"></i>
-            <span>Marking: +<span id="correctMarking">1</span> for correct, -<span id="wrongMarking">0.25</span> for wrong</span>
+            <span>Marking: +<span id="correctMarking">1</span> for correct, -<span id="wrongMarking">0.5</span> for wrong</span>
           </div>
           <div class="info-item">
             <i class="fas fa-book"></i>
             <span>Sections: <span id="sectionsInfo">Loading...</span></span>
           </div>
-          <div class="info-item">
+          <div class="info-item warning">
             <i class="fas fa-exclamation-triangle"></i>
-            <span id="autoSubmitInfo">Auto-submission after 30 minutes</span>
+            <span id="autoSubmitInfo">Auto-submission after 60 minutes</span>
           </div>
-          <div class="info-item">
+          <div class="info-item danger">
             <i class="fas fa-minus-circle"></i>
-            <span>Negative scores allowed</span>
+            <span>Negative scores allowed (-0.5 per wrong)</span>
           </div>
+        </div>
+        
+        <div class="mobile-warning">
+          <i class="fas fa-mobile-alt"></i>
+          <p><strong>Mobile Optimized:</strong> Timer stays fixed at top. Rotate to landscape for better experience.</p>
         </div>
         
         <div class="loading-indicator" id="formLoading">
@@ -90,21 +124,6 @@
 
       <!-- Quiz Section -->
       <div id="quiz">
-        <div class="sticky-timer" id="stickyTimer">
-          <div class="timer-container">
-            <i class="fas fa-hourglass-half"></i>
-            <span class="timer-text">Time Remaining:</span>
-            <span class="timer-value" id="stickyTime">30:00</span>
-            <span class="timer-progress">
-              <span class="progress-fill" id="timerProgressFill"></span>
-            </span>
-            <span class="answered-count">
-              <i class="fas fa-check-circle"></i>
-              <span id="answeredCount">0</span>/<span id="totalQuestionsSticky">0</span>
-            </span>
-          </div>
-        </div>
-        
         <div class="auto-submit-warning" id="autoSubmitWarning" style="display: none;">
           <i class="fas fa-exclamation-circle"></i> Auto-submitting in <span id="warningCountdown">10</span> minutes!
         </div>
@@ -135,6 +154,13 @@
           </button>
           <button type="button" class="btn" onclick="resetTest()" style="background: linear-gradient(to right, #777, #555);">
             <i class="fas fa-redo"></i> Reset
+          </button>
+        </div>
+        
+        <!-- Mobile Floating Submit Button -->
+        <div class="mobile-floating-submit" id="mobileFloatingSubmit" style="display: none;">
+          <button class="btn floating-btn" onclick="submitTest()">
+            <i class="fas fa-paper-plane"></i> Submit Now
           </button>
         </div>
       </div>
@@ -204,7 +230,7 @@
         <p><strong>Test ID:</strong> <span id="testId"></span></p>
         <p><strong>Duration:</strong> <span id="testDuration"></span> minutes</p>
         <p><strong>Questions Attempted:</strong> <span id="questionsAttempted"></span> of <span id="totalQuestionsResult"></span></p>
-        <p><strong>Marking System:</strong> +<span id="marksPerQuestion">1</span> for correct, -<span id="negativeMarks">0.25</span> for wrong</p>
+        <p><strong>Marking System:</strong> +<span id="marksPerQuestion">1</span> for correct, -<span id="negativeMarks">0.5</span> for wrong</p>
       </div>
       
       <div class="redirect-message" id="redirectMessage">
