@@ -49,8 +49,9 @@ function setupEventListeners() {
     window.addEventListener('orientationchange', function() {
         setTimeout(function() {
             updateFixedTimer();
-            if (window.MathJax && MathJax.typesetPromise) {
-                MathJax.typesetPromise();
+            // Re-render MathJax after orientation change
+            if (window.MathJax && MathJax.typeset) {
+                MathJax.typeset();
             }
         }, 300);
     });
@@ -73,17 +74,13 @@ function setupTouchEvents() {
     }, { passive: true });
 }
 
-// Function to process LaTeX
+// Function to process LaTeX - FIXED
 function processLaTeX(text) {
     if (!text || typeof text !== 'string') return text || '';
     
-    // Replace $...$ with \\(...\\) for inline math
-    let processed = text.replace(/\$(.*?)\$/g, '\\($1\\)');
-    
-    // Handle fractions and other LaTeX
-    processed = processed.replace(/\\frac{(\d+)}{(\d+)}/g, '\\(\\frac{$1}{$2}\\)');
-    
-    return processed;
+    // Preserve LaTeX exactly as it is - don't convert $...$
+    // MathJax will handle it directly
+    return text;
 }
 
 // Fetch questions from Google Sheets
@@ -129,7 +126,7 @@ async function loadQuestions() {
     }
 }
 
-// FIXED: Process questions data
+// Process questions data - FIXED
 function processQuestions() {
     // Clear previous data
     correctAnswers = {};
@@ -142,75 +139,35 @@ function processQuestions() {
     questionsData.forEach((q, index) => {
         const questionId = `q${index + 1}`;
         
-        // DEBUG: Log raw data for first few questions
-        if (index < 3) {
-            console.log(`Question ${index + 1} raw data:`, q);
-            console.log("Keys:", Object.keys(q));
-        }
+        // Extract data - handle different possible property names
+        let questionText = q.Question || q.question || q['Question'] || '';
+        let optionA = q['Option A'] || q.optionA || q.optiona || '';
+        let optionB = q['Option B'] || q.optionB || q.optionb || '';
+        let optionC = q['Option C'] || q.optionC || q.optionc || '';
+        let optionD = q['Option D'] || q.optionD || q.optiond || '';
         
-        // IMPORTANT: Check for different possible property names
-        // Try all possible property names for each field
-        
-        // Question text
-        let questionText = '';
-        if (q.Question !== undefined) questionText = q.Question;
-        else if (q.question !== undefined) questionText = q.question;
-        else if (q['Question'] !== undefined) questionText = q['Question'];
-        else if (q['question'] !== undefined) questionText = q['question'];
-        
-        // Options
-        let optionA = '';
-        if (q['Option A'] !== undefined) optionA = q['Option A'];
-        else if (q.optionA !== undefined) optionA = q.optionA;
-        else if (q['option a'] !== undefined) optionA = q['option a'];
-        
-        let optionB = '';
-        if (q['Option B'] !== undefined) optionB = q['Option B'];
-        else if (q.optionB !== undefined) optionB = q.optionB;
-        else if (q['option b'] !== undefined) optionB = q['option b'];
-        
-        let optionC = '';
-        if (q['Option C'] !== undefined) optionC = q['Option C'];
-        else if (q.optionC !== undefined) optionC = q.optionC;
-        else if (q['option c'] !== undefined) optionC = q['option c'];
-        
-        let optionD = '';
-        if (q['Option D'] !== undefined) optionD = q['Option D'];
-        else if (q.optionD !== undefined) optionD = q.optionD;
-        else if (q['option d'] !== undefined) optionD = q['option d'];
-        
-        // Answer
+        // Normalize the answer
         let answer = '';
         if (q.Answer !== undefined) answer = String(q.Answer).trim().toLowerCase();
         else if (q.answer !== undefined) answer = String(q.answer).trim().toLowerCase();
-        else if (q['Answer'] !== undefined) answer = String(q['Answer']).trim().toLowerCase();
         
-        // Type
+        // Get question type
         let type = 'General';
         if (q.Type !== undefined) type = q.Type;
         else if (q.type !== undefined) type = q.type;
-        else if (q['Type'] !== undefined) type = q['Type'];
         
-        // Marks
+        // Get marks
         let marksValue = testConfig.correctMark;
         if (q.Marks !== undefined) marksValue = parseFloat(q.Marks) || testConfig.correctMark;
         else if (q.marks !== undefined) marksValue = parseFloat(q.marks) || testConfig.correctMark;
         
-        // Process LaTeX
-        q.questionText = processLaTeX(questionText);
-        q.optionA = processLaTeX(optionA);
-        q.optionB = processLaTeX(optionB);
-        q.optionC = processLaTeX(optionC);
-        q.optionD = processLaTeX(optionD);
+        // Store processed data
+        q.questionText = questionText;
+        q.optionA = optionA;
+        q.optionB = optionB;
+        q.optionC = optionC;
+        q.optionD = optionD;
         
-        // Store the original values for display
-        q.displayQuestion = questionText;
-        q.displayOptionA = optionA;
-        q.displayOptionB = optionB;
-        q.displayOptionC = optionC;
-        q.displayOptionD = optionD;
-        
-        // Store answer
         if (answer) {
             correctAnswers[questionId] = answer;
         }
@@ -236,8 +193,16 @@ function processQuestions() {
             marks: marksValue
         };
         
-        // Add processed data back to question object
-        q.processed = true;
+        // Debug first 3 questions
+        if (index < 3) {
+            console.log(`Question ${index + 1}:`, {
+                question: questionText.substring(0, 50) + '...',
+                optionA: optionA,
+                optionB: optionB,
+                answer: answer,
+                type: type
+            });
+        }
     });
     
     // Update UI with loaded data
@@ -250,15 +215,34 @@ function processQuestions() {
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
     
     console.log(`Processed ${totalQuestions} questions`);
-    console.log("Correct answers:", correctAnswers);
 }
 
 // Load sample questions (fallback)
 function loadSampleQuestions() {
     console.log('Loading sample questions...');
     
-    // Use actual data from your CSV
+    // Use actual data with LaTeX
     questionsData = [
+        {
+            "Question": "If $f(x) = \\frac{x+2}{x-2}$ for all integers except $x=2$, which has the greatest value?",
+            "Option A": "$f(-1)$",
+            "Option B": "$f(0)$",
+            "Option C": "$f(1)$",
+            "Option D": "$f(3)$",
+            "Answer": "D",
+            "Type": "Math",
+            "Marks": "1"
+        },
+        {
+            "Question": "Solve: $x^2 + x = 1$",
+            "Option A": "$\\frac{-1 \\pm \\sqrt{5}}{2}$",
+            "Option B": "$\\frac{-2 \\pm \\sqrt{5}}{1}$",
+            "Option C": "$\\frac{1 \\pm \\sqrt{5}}{2}$",
+            "Option D": "$\\frac{-5 \\pm \\sqrt{1}}{2}$",
+            "Answer": "A",
+            "Type": "Math",
+            "Marks": "1"
+        },
         {
             "Question": "If 2 men or 3 women can do a piece of work in 42 days, then 6 men and 12 women together can finish it in—",
             "Option A": "4 days",
@@ -266,26 +250,6 @@ function loadSampleQuestions() {
             "Option C": "8 days",
             "Option D": "9 days",
             "Answer": "B",
-            "Type": "Math",
-            "Marks": "1"
-        },
-        {
-            "Question": "When $10\\frac{1}{10}$ percent of 5000 is subtracted from $\\frac{1}{10}$ of 5,000 the difference is—",
-            "Option A": "0",
-            "Option B": "50",
-            "Option C": "450",
-            "Option D": "495",
-            "Answer": "B",
-            "Type": "Math",
-            "Marks": "1"
-        },
-        {
-            "Question": "What is the greatest positive integer $n$ such that $2^n$ is a factor of $12^{10}$?",
-            "Option A": "10",
-            "Option B": "30",
-            "Option C": "20",
-            "Option D": "40",
-            "Answer": "C",
             "Type": "Math",
             "Marks": "1"
         }
@@ -312,7 +276,7 @@ function updateFormInfo() {
         // Count questions per section
         const sectionCounts = {};
         questionsData.forEach(q => {
-            const type = q.Type || q.type || q['Type'] || 'General';
+            const type = q.Type || q.type || 'General';
             sectionCounts[type] = (sectionCounts[type] || 0) + 1;
         });
         
@@ -339,7 +303,7 @@ function updateFormInfo() {
     document.getElementById('negativeMarks').textContent = testConfig.wrongPenalty;
 }
 
-// Validation functions
+// Validation functions (unchanged)
 function validateName() {
     const name = document.getElementById('name').value.trim();
     const errorElement = document.getElementById('nameError');
@@ -465,7 +429,7 @@ function updateFixedTimer() {
     }
 }
 
-// FIXED: Display questions function
+// Display questions - FIXED for LaTeX
 function displayQuestions() {
     const questionsContainer = document.getElementById('questionsContainer');
     const questionLoading = document.getElementById('questionLoading');
@@ -490,15 +454,12 @@ function displayQuestions() {
         let type = 'General';
         if (question.Type) type = question.Type;
         else if (question.type) type = question.type;
-        else if (question['Type']) type = question['Type'];
         
         if (!questionsByType[type]) {
             questionsByType[type] = [];
         }
         questionsByType[type].push({...question, index: index + 1});
     });
-    
-    console.log("Questions grouped by type:", questionsByType);
     
     // Display questions by type
     Object.keys(questionsByType).forEach(type => {
@@ -518,34 +479,26 @@ function displayQuestions() {
             questionDiv.className = 'question-container';
             questionDiv.id = `q${q.index}`;
             
-            // Use display properties or fall back to processed properties
-            const questionText = q.displayQuestion || q.questionText || '';
-            const optionA = q.displayOptionA || q.optionA || '';
-            const optionB = q.displayOptionB || q.optionB || '';
-            const optionC = q.displayOptionC || q.optionC || '';
-            const optionD = q.displayOptionD || q.optionD || '';
-            
-            console.log(`Question ${q.index}:`, questionText);
-            
+            // Use raw text - LaTeX will be rendered by MathJax
             questionDiv.innerHTML = `
                 <div class="question-number">${q.index}</div>
-                <div class="question-text">${questionText}</div>
+                <div class="question-text">${escapeHtml(q.questionText || '')}</div>
                 <div class="options-container">
                     <div class="option" onclick="selectOption('q${q.index}', 'a')">
                         <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
-                        <div class="option-label">A) ${optionA}</div>
+                        <div class="option-label">A) ${escapeHtml(q.optionA || '')}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'b')">
                         <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
-                        <div class="option-label">B) ${optionB}</div>
+                        <div class="option-label">B) ${escapeHtml(q.optionB || '')}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'c')">
                         <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
-                        <div class="option-label">C) ${optionC}</div>
+                        <div class="option-label">C) ${escapeHtml(q.optionC || '')}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'd')">
                         <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
-                        <div class="option-label">D) ${optionD}</div>
+                        <div class="option-label">D) ${escapeHtml(q.optionD || '')}</div>
                     </div>
                 </div>
             `;
@@ -557,15 +510,23 @@ function displayQuestions() {
     questionLoading.style.display = 'none';
     
     // Re-render MathJax after loading questions
-    if (window.MathJax && MathJax.typesetPromise) {
+    if (window.MathJax && MathJax.typeset) {
         setTimeout(() => {
-            MathJax.typesetPromise().catch((err) => {
-                console.log('MathJax typeset promise error: ', err.message);
-            });
+            console.log("Rendering MathJax...");
+            MathJax.typeset();
         }, 500);
     }
 }
 
+// Helper function to escape HTML but preserve LaTeX
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Timer functions (unchanged)
 function startTimer() {
     clearInterval(timerInterval);
     
@@ -737,6 +698,7 @@ function updateAnsweredCount() {
     document.getElementById('answeredCount').textContent = answered;
 }
 
+// Submit test and results functions (unchanged)
 function submitTest() {
     clearInterval(timerInterval);
     
