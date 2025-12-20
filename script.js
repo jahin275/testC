@@ -5,7 +5,6 @@ let timeLeft = 3600; // 60 minutes in seconds (60 * 60)
 let totalQuestions = 0;
 let questionsData = [];
 let correctAnswers = {};
-let userAnswers = {}; // Store user answers for analysis
 let redirectTimer;
 let redirectSeconds = 5;
 let questionSections = new Set();
@@ -13,201 +12,24 @@ let testConfig = {
     duration: 3600, // 60 minutes in seconds
     correctMark: 1,
     wrongPenalty: 0.5, // 0.5 negative marks per wrong answer
-    allowNegative: true,
-    totalMcqMarks: 75, // Total MCQ marks
-    convertedMcqMarks: 55 // Converted to 55 marks
+    allowNegative: true
 };
+
+// Store user responses for detailed analysis
+let userResponses = {};
 
 // Mobile detection
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('BUP Admission Test System Initialized');
-    
-    // Setup viewport for mobile
-    if (isMobile) {
-        setupMobileViewport();
-    }
+    console.log('BUP Test System Initialized');
+    console.log('Mobile device:', isMobile);
     
     loadQuestions();
     setupEventListeners();
-    
-    // Setup touch events for better mobile support
     setupTouchEvents();
-    
-    // Setup scroll handling
-    setupScrollHandling();
-    
-    // Initialize education marks calculation
-    initializeEducationMarks();
 });
-
-// Education marks functions
-function initializeEducationMarks() {
-    // Set default values
-    document.getElementById('ssc_obtained').value = '';
-    document.getElementById('hsc_obtained').value = '';
-    document.getElementById('o_level_gpa').value = '';
-    document.getElementById('a_level_points').value = '';
-    
-    // Calculate initial percentages
-    calculatePercentage('ssc');
-    calculatePercentage('hsc');
-}
-
-function showMarksInput(type) {
-    if (type === 'ssc') {
-        document.getElementById('sscMarks').style.display = 'block';
-        document.getElementById('oLevelMarks').style.display = 'none';
-        calculatePercentage('ssc');
-    } else if (type === 'o_level') {
-        document.getElementById('sscMarks').style.display = 'none';
-        document.getElementById('oLevelMarks').style.display = 'block';
-        calculateOLvlMarks();
-    } else if (type === 'hsc') {
-        document.getElementById('hscMarks').style.display = 'block';
-        document.getElementById('aLevelMarks').style.display = 'none';
-        calculatePercentage('hsc');
-    } else if (type === 'a_level') {
-        document.getElementById('hscMarks').style.display = 'none';
-        document.getElementById('aLevelMarks').style.display = 'block';
-        calculateALvlMarks();
-    }
-}
-
-function calculatePercentage(type) {
-    let obtained, percentageField;
-    
-    if (type === 'ssc') {
-        obtained = parseFloat(document.getElementById('ssc_obtained').value) || 0;
-        percentageField = document.getElementById('ssc_percentage');
-        if (obtained > 0) {
-            const percentage = ((obtained / 1300) * 100).toFixed(2);
-            percentageField.value = percentage;
-        } else {
-            percentageField.value = '';
-        }
-    } else if (type === 'hsc') {
-        obtained = parseFloat(document.getElementById('hsc_obtained').value) || 0;
-        percentageField = document.getElementById('hsc_percentage');
-        if (obtained > 0) {
-            const percentage = ((obtained / 1300) * 100).toFixed(2);
-            percentageField.value = percentage;
-        } else {
-            percentageField.value = '';
-        }
-    }
-}
-
-function calculateOLvlMarks() {
-    const gpa = parseFloat(document.getElementById('o_level_gpa').value) || 0;
-    const equivalentField = document.getElementById('o_level_equivalent');
-    
-    if (gpa > 0) {
-        // O-Level: GPA * 260 = Equivalent marks out of 1300
-        const equivalentMarks = (gpa * 260).toFixed(0);
-        equivalentField.value = equivalentMarks;
-        
-        // Also calculate percentage
-        const percentage = ((equivalentMarks / 1300) * 100).toFixed(2);
-        document.getElementById('ssc_percentage').value = percentage;
-    } else {
-        equivalentField.value = '';
-        document.getElementById('ssc_percentage').value = '';
-    }
-}
-
-function calculateALvlMarks() {
-    const points = parseFloat(document.getElementById('a_level_points').value) || 0;
-    const equivalentField = document.getElementById('a_level_equivalent');
-    
-    if (points > 0) {
-        // A-Level: Points * 65 = Equivalent marks out of 1300
-        const equivalentMarks = (points * 65).toFixed(0);
-        equivalentField.value = equivalentMarks;
-        
-        // Also calculate percentage
-        const percentage = ((equivalentMarks / 1300) * 100).toFixed(2);
-        document.getElementById('hsc_percentage').value = percentage;
-    } else {
-        equivalentField.value = '';
-        document.getElementById('hsc_percentage').value = '';
-    }
-}
-
-// Calculate educational scores
-function calculateEducationalScores() {
-    let sscScore = 0;
-    let hscScore = 0;
-    
-    // SSC/O-Level Calculation (25 marks)
-    const sscType = document.querySelector('input[name="ssc_type"]:checked').value;
-    
-    if (sscType === 'ssc') {
-        const obtained = parseFloat(document.getElementById('ssc_obtained').value) || 0;
-        if (obtained > 0) {
-            sscScore = (obtained / 1300) * 25;
-        }
-    } else if (sscType === 'o_level') {
-        const gpa = parseFloat(document.getElementById('o_level_gpa').value) || 0;
-        if (gpa > 0) {
-            const equivalentMarks = gpa * 260;
-            sscScore = (equivalentMarks / 1300) * 25;
-        }
-    }
-    
-    // HSC/A-Level Calculation (20 marks)
-    const hscType = document.querySelector('input[name="hsc_type"]:checked').value;
-    
-    if (hscType === 'hsc') {
-        const obtained = parseFloat(document.getElementById('hsc_obtained').value) || 0;
-        if (obtained > 0) {
-            hscScore = (obtained / 1300) * 20;
-        }
-    } else if (hscType === 'a_level') {
-        const points = parseFloat(document.getElementById('a_level_points').value) || 0;
-        if (points > 0) {
-            const equivalentMarks = points * 65;
-            hscScore = (equivalentMarks / 1300) * 20;
-        }
-    }
-    
-    // Apply default/adjustment rule
-    const defaultScore = 35; // out of 45
-    const totalEducational = sscScore + hscScore;
-    
-    if (totalEducational === 0) {
-        // No marks provided, use default
-        sscScore = (25/45) * defaultScore;
-        hscScore = (20/45) * defaultScore;
-    } else if (totalEducational < 35) {
-        // Below minimum, adjust to 35
-        const adjustmentFactor = 35 / totalEducational;
-        sscScore *= adjustmentFactor;
-        hscScore *= adjustmentFactor;
-    }
-    // If total > 45, keep as is (no cap)
-    
-    return {
-        sscScore: parseFloat(sscScore.toFixed(2)),
-        hscScore: parseFloat(hscScore.toFixed(2)),
-        sscType: sscType,
-        hscType: hscType,
-        sscMarks: sscType === 'ssc' ? document.getElementById('ssc_obtained').value || 'Not provided' : 
-                  document.getElementById('o_level_gpa').value ? document.getElementById('o_level_gpa').value + ' GPA' : 'Not provided',
-        hscMarks: hscType === 'hsc' ? document.getElementById('hsc_obtained').value || 'Not provided' :
-                  document.getElementById('a_level_points').value ? document.getElementById('a_level_points').value + ' Points' : 'Not provided'
-    };
-}
-
-// Set up mobile viewport
-function setupMobileViewport() {
-    const viewport = document.querySelector('meta[name="viewport"]');
-    if (viewport) {
-        viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes";
-    }
-}
 
 // Set up event listeners
 function setupEventListeners() {
@@ -215,12 +37,6 @@ function setupEventListeners() {
     document.getElementById('name').addEventListener('input', validateName);
     document.getElementById('email').addEventListener('input', validateEmail);
     document.getElementById('phone').addEventListener('input', validatePhone);
-    
-    // Education marks validation
-    document.getElementById('ssc_obtained').addEventListener('input', validateSSCMarks);
-    document.getElementById('hsc_obtained').addEventListener('input', validateHSCMarks);
-    document.getElementById('o_level_gpa').addEventListener('input', validateOLvlGPA);
-    document.getElementById('a_level_points').addEventListener('input', validateALvlPoints);
     
     // Enter key to start test
     document.addEventListener('keypress', function(e) {
@@ -238,54 +54,11 @@ function setupEventListeners() {
             }
         }, 300);
     });
-    
-    // Handle resize
-    window.addEventListener('resize', updateFixedTimer);
 }
 
-// Validation functions for education marks
-function validateSSCMarks() {
-    const marks = document.getElementById('ssc_obtained');
-    if (marks.value && (parseFloat(marks.value) < 0 || parseFloat(marks.value) > 1300)) {
-        marks.setCustomValidity('Marks must be between 0 and 1300');
-        marks.reportValidity();
-    } else {
-        marks.setCustomValidity('');
-    }
-}
-
-function validateHSCMarks() {
-    const marks = document.getElementById('hsc_obtained');
-    if (marks.value && (parseFloat(marks.value) < 0 || parseFloat(marks.value) > 1300)) {
-        marks.setCustomValidity('Marks must be between 0 and 1300');
-        marks.reportValidity();
-    } else {
-        marks.setCustomValidity('');
-    }
-}
-
-function validateOLvlGPA() {
-    const gpa = document.getElementById('o_level_gpa');
-    if (gpa.value && (parseFloat(gpa.value) < 0 || parseFloat(gpa.value) > 5)) {
-        gpa.setCustomValidity('GPA must be between 0 and 5');
-        gpa.reportValidity();
-    } else {
-        gpa.setCustomValidity('');
-    }
-}
-
-function validateALvlPoints() {
-    const points = document.getElementById('a_level_points');
-    if (points.value && (parseFloat(points.value) < 0 || parseFloat(points.value) > 20)) {
-        points.setCustomValidity('Points must be between 0 and 20');
-        points.reportValidity();
-    } else {
-        points.setCustomValidity('');
-    }
-}
-
-// Setup touch events
+// Setup touch events for better mobile interaction
 function setupTouchEvents() {
+    // Add touch feedback to options
     document.addEventListener('touchstart', function(e) {
         if (e.target.closest('.option')) {
             e.target.closest('.option').classList.add('touch-active');
@@ -300,40 +73,27 @@ function setupTouchEvents() {
     }, { passive: true });
 }
 
-// Setup scroll handling
-function setupScrollHandling() {
-    document.addEventListener('touchmove', function(e) {
-        // Allow all touch moves for scrolling
-    }, { passive: true });
-}
-
-// Warn before leaving test
-function setupBeforeUnload() {
-    window.addEventListener('beforeunload', function(e) {
-        if (document.getElementById('quiz').style.display !== 'none') {
-            e.preventDefault();
-            e.returnValue = 'Are you sure you want to leave? Your test progress will be lost.';
-            return e.returnValue;
-        }
-    });
-}
-
 // Function to process LaTeX
 function processLaTeX(text) {
     if (!text || typeof text !== 'string') return text || '';
+    
+    // Replace $...$ with \\(...\\) for inline math
     let processed = text.replace(/\$(.*?)\$/g, '\\($1\\)');
+    
     return processed;
 }
 
 // Fetch questions from Google Sheets
 async function loadQuestions() {
     try {
+        // Show loading state
         document.getElementById('formLoading').style.display = 'block';
         document.getElementById('formError').style.display = 'none';
         document.getElementById('startTestBtn').disabled = true;
         document.getElementById('questionSourceInfo').textContent = 'Loading questions...';
         document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
         
+        // Try to load from Google Sheets
         const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
         
         const response = await fetch(url);
@@ -348,26 +108,31 @@ async function loadQuestions() {
             questionsData = result.questions;
             totalQuestions = questionsData.length;
             
-            console.log(`Loaded ${totalQuestions} questions`);
+            console.log(`Loaded ${totalQuestions} questions from Google Sheets`);
             
+            // Process questions
             processQuestions();
             
         } else {
-            throw new Error("No questions found");
+            throw new Error("No questions found in Google Sheets");
         }
         
     } catch (error) {
         console.error("Error loading questions:", error);
+        
+        // Fallback to sample questions
         loadSampleQuestions();
     }
 }
 
 // Process questions data
 function processQuestions() {
+    // Clear previous data
     correctAnswers = {};
-    userAnswers = {};
     questionSections.clear();
+    userResponses = {};
     
+    // Process questions data
     questionsData.forEach((q, index) => {
         const questionId = `q${index + 1}`;
         
@@ -389,18 +154,39 @@ function processQuestions() {
         // Store marks per question
         q.marksValue = parseFloat(q.Marks || q.marks || q['Marks'] || testConfig.correctMark) || testConfig.correctMark;
         
-        // Store question text and options
+        // Store question text and options with LaTeX processing
         q.questionText = processLaTeX(q.Question || q.question || q['Question'] || '');
         q.optionA = processLaTeX(q['Option A'] || q.optiona || q['option a'] || q.optionA || '');
         q.optionB = processLaTeX(q['Option B'] || q.optionb || q['option b'] || q.optionB || '');
         q.optionC = processLaTeX(q['Option C'] || q.optionc || q['option c'] || q.optionC || '');
         q.optionD = processLaTeX(q['Option D'] || q.optiond || q['option d'] || q.optionD || '');
+        
+        // Initialize user response for this question
+        userResponses[questionId] = {
+            questionNumber: index + 1,
+            questionText: q.Question || q.question || q['Question'] || '',
+            userAnswer: '',
+            correctAnswer: answer,
+            isCorrect: false,
+            selectedOption: '',
+            options: {
+                A: q['Option A'] || q.optionA || '',
+                B: q['Option B'] || q.optionB || '',
+                C: q['Option C'] || q.optionC || '',
+                D: q['Option D'] || q.optionD || ''
+            },
+            section: type,
+            marks: q.marksValue
+        };
     });
     
+    // Update UI with loaded data
     updateFormInfo();
+    
+    // Enable start button
     document.getElementById('startTestBtn').disabled = false;
     document.getElementById('formLoading').style.display = 'none';
-    document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions`;
+    document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
 }
 
@@ -442,24 +228,31 @@ function loadSampleQuestions() {
     ];
     
     totalQuestions = questionsData.length;
+    
+    // Process the sample questions
     processQuestions();
     document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} sample questions`;
 }
 
 function updateFormInfo() {
+    // Update total questions count
     document.getElementById('totalQuestionsCount').textContent = totalQuestions;
     document.getElementById('fixedTotalQuestions').textContent = totalQuestions;
+    document.getElementById('totalQuestionsResult').textContent = totalQuestions;
     
+    // Update sections info
     const sectionsArray = Array.from(questionSections);
     let sectionsText = "";
     
     if (sectionsArray.length > 0) {
+        // Count questions per section
         const sectionCounts = {};
         questionsData.forEach(q => {
             const type = q.Type || q.type || q['Type'] || 'General';
             sectionCounts[type] = (sectionCounts[type] || 0) + 1;
         });
         
+        // Create sections text
         sectionsText = sectionsArray.map(section => {
             const count = sectionCounts[section] || 0;
             return `${section} (${count})`;
@@ -469,12 +262,17 @@ function updateFormInfo() {
     }
     
     document.getElementById('sectionsInfo').textContent = sectionsText;
+    
+    // Update test duration
     const durationMinutes = testConfig.duration / 60;
     document.getElementById('testDurationInfo').textContent = durationMinutes;
     document.getElementById('autoSubmitInfo').textContent = `Auto-submission after ${durationMinutes} minutes`;
     
+    // Update marking system display
     document.getElementById('correctMarking').textContent = testConfig.correctMark;
     document.getElementById('wrongMarking').textContent = testConfig.wrongPenalty;
+    document.getElementById('marksPerQuestion').textContent = testConfig.correctMark;
+    document.getElementById('negativeMarks').textContent = testConfig.wrongPenalty;
 }
 
 // Validation functions
@@ -528,55 +326,19 @@ function validatePhone() {
     return true;
 }
 
-function validateEducationMarks() {
-    // SSC validation
-    const sscType = document.querySelector('input[name="ssc_type"]:checked').value;
-    if (sscType === 'ssc') {
-        const sscMarks = document.getElementById('ssc_obtained').value;
-        if (sscMarks && (parseFloat(sscMarks) < 0 || parseFloat(sscMarks) > 1300)) {
-            alert('SSC marks must be between 0 and 1300');
-            return false;
-        }
-    } else if (sscType === 'o_level') {
-        const gpa = document.getElementById('o_level_gpa').value;
-        if (gpa && (parseFloat(gpa) < 0 || parseFloat(gpa) > 5)) {
-            alert('O-Level GPA must be between 0 and 5');
-            return false;
-        }
-    }
-    
-    // HSC validation
-    const hscType = document.querySelector('input[name="hsc_type"]:checked').value;
-    if (hscType === 'hsc') {
-        const hscMarks = document.getElementById('hsc_obtained').value;
-        if (hscMarks && (parseFloat(hscMarks) < 0 || parseFloat(hscMarks) > 1300)) {
-            alert('HSC marks must be between 0 and 1300');
-            return false;
-        }
-    } else if (hscType === 'a_level') {
-        const points = document.getElementById('a_level_points').value;
-        if (points && (parseFloat(points) < 0 || parseFloat(points) > 20)) {
-            alert('A-Level points must be between 0 and 20');
-            return false;
-        }
-    }
-    
-    return true;
-}
-
 function validateAndStartTest() {
     const isNameValid = validateName();
     const isEmailValid = validateEmail();
     const isPhoneValid = validatePhone();
-    const isEducationValid = validateEducationMarks();
     
+    // Validate that questions are loaded
     if (questionsData.length === 0) {
         alert("Questions are not loaded. Please refresh the page or check your connection.");
         loadQuestions();
         return;
     }
     
-    if (isNameValid && isEmailValid && isPhoneValid && isEducationValid) {
+    if (isNameValid && isEmailValid && isPhoneValid) {
         startTest();
     }
 }
@@ -584,34 +346,53 @@ function validateAndStartTest() {
 function startTest() {
     startTime = new Date().toISOString();
     
+    // Hide form and show quiz
     document.getElementById('testForm').style.display = 'none';
     document.getElementById('quiz').style.display = 'block';
+    
+    // Show fixed timer
     document.getElementById('fixedTimer').style.display = 'block';
     
+    // Show mobile floating submit button if on mobile
     if (isMobile) {
         document.getElementById('mobileFloatingSubmit').style.display = 'block';
     }
     
+    // Reset timer
     timeLeft = testConfig.duration;
     updateFixedTimerDisplay();
     document.getElementById('fixedTimer').className = 'fixed-timer-container';
     document.getElementById('autoSubmitWarning').style.display = 'none';
     
+    // Display questions
     displayQuestions();
+    
+    // Start the timer
     startTimer();
+    
+    // Update progress bar
     updateProgressBar();
+    
+    // Update fixed timer position
     updateFixedTimer();
-    setupBeforeUnload();
     
-    document.body.style.overflow = 'auto';
-    document.body.style.height = 'auto';
+    // Setup beforeunload warning
+    window.addEventListener('beforeunload', function(e) {
+        if (document.getElementById('quiz').style.display !== 'none') {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to leave? Your test progress will be lost.';
+            return e.returnValue;
+        }
+    });
     
+    // Scroll to top
     setTimeout(() => {
         window.scrollTo(0, 0);
     }, 100);
 }
 
 function updateFixedTimer() {
+    // Ensure timer is at top
     const timer = document.getElementById('fixedTimer');
     if (timer) {
         timer.style.top = '0';
@@ -625,6 +406,7 @@ function displayQuestions() {
     const questionLoading = document.getElementById('questionLoading');
     const quizError = document.getElementById('quizError');
     
+    // Clear previous questions
     questionsContainer.innerHTML = '';
     questionLoading.style.display = 'block';
     quizError.style.display = 'none';
@@ -649,6 +431,7 @@ function displayQuestions() {
     Object.keys(questionsByType).forEach(type => {
         const typeQuestions = questionsByType[type];
         
+        // Add section header
         const sectionHeader = document.createElement('h3');
         sectionHeader.className = 'section-title';
         sectionHeader.style.fontSize = '1.2rem';
@@ -656,6 +439,7 @@ function displayQuestions() {
         sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
         questionsContainer.appendChild(sectionHeader);
         
+        // Add questions for this section
         typeQuestions.forEach(q => {
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question-container';
@@ -690,6 +474,7 @@ function displayQuestions() {
     
     questionLoading.style.display = 'none';
     
+    // Re-render MathJax after loading questions
     if (window.MathJax && MathJax.typesetPromise) {
         MathJax.typesetPromise().catch((err) => {
             console.log('MathJax typeset promise error: ', err.message);
@@ -710,34 +495,43 @@ function startTimer() {
     timerInterval = setInterval(() => {
         timeLeft--;
         
+        // Update timer display
         updateFixedTimerDisplay();
+        
+        // Update timer progress
         updateTimerProgress();
         
+        // Change timer color based on remaining time
         const timerElement = document.getElementById('fixedTimer');
-        if (timeLeft <= Math.floor(testConfig.duration * 0.25)) {
+        if (timeLeft <= Math.floor(testConfig.duration * 0.25)) { // Last 15 minutes
             timerElement.className = 'fixed-timer-container danger';
-        } else if (timeLeft <= Math.floor(testConfig.duration * 0.5)) {
+        } else if (timeLeft <= Math.floor(testConfig.duration * 0.5)) { // Last 30 minutes
             timerElement.className = 'fixed-timer-container warning';
         }
         
-        if (timeLeft === 600) {
+        // Show warning when 10 minutes left
+        if (timeLeft === 600) { // 10 minutes = 600 seconds
             document.getElementById('autoSubmitWarning').style.display = 'block';
             showNotification('10 minutes remaining! Auto-submit soon.');
         }
         
-        if (timeLeft === 300) {
+        // Show warning when 5 minutes left
+        if (timeLeft === 300) { // 5 minutes
             showNotification('5 minutes remaining! Hurry up!');
         }
         
-        if (timeLeft === 60) {
+        // Show warning when 1 minute left
+        if (timeLeft === 60) { // 1 minute
             showNotification('1 minute remaining! Submit now!');
         }
         
+        // Update warning countdown
         if (timeLeft <= 600 && timeLeft > 0) {
             const minutesLeft = Math.ceil(timeLeft / 60);
             document.getElementById('warningCountdown').textContent = minutesLeft;
         }
         
+        // Auto-submit when time is up
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
             document.getElementById('autoSubmitWarning').style.display = 'none';
@@ -759,6 +553,7 @@ function updateTimerProgress() {
     const progressPercentage = (timeLeft / testConfig.duration) * 100;
     document.getElementById('fixedTimerProgress').style.width = `${progressPercentage}%`;
     
+    // Change progress bar color based on time
     const progressFill = document.getElementById('fixedTimerProgress');
     if (timeLeft <= testConfig.duration * 0.25) {
         progressFill.style.background = 'linear-gradient(to right, #ff4500, #ff6a00)';
@@ -768,6 +563,7 @@ function updateTimerProgress() {
 }
 
 function showNotification(message) {
+    // Create notification element
     const notification = document.createElement('div');
     notification.className = 'notification';
     notification.innerHTML = `<i class="fas fa-bell"></i> ${message}`;
@@ -788,6 +584,7 @@ function showNotification(message) {
     
     document.body.appendChild(notification);
     
+    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideUp 0.3s ease';
         setTimeout(() => notification.remove(), 300);
@@ -809,25 +606,31 @@ style.textContent = `
 document.head.appendChild(style);
 
 function selectOption(questionId, option) {
+    // Unselect all options for this question
     const options = document.querySelectorAll(`input[name=${questionId}]`);
     options.forEach(opt => {
         opt.checked = false;
         opt.parentElement.classList.remove('selected');
     });
     
+    // Select the clicked option
     const selectedOption = document.getElementById(`${questionId}${option}`);
     if (selectedOption) {
         selectedOption.checked = true;
         selectedOption.parentElement.classList.add('selected');
         
-        // Store user answer for analysis
-        userAnswers[questionId] = option;
+        // Update user response
+        userResponses[questionId].userAnswer = option.toLowerCase();
+        userResponses[questionId].selectedOption = option.toUpperCase();
+        userResponses[questionId].isCorrect = (option.toLowerCase() === userResponses[questionId].correctAnswer);
         
+        // Add haptic feedback on mobile
         if (isMobile && navigator.vibrate) {
             navigator.vibrate(50);
         }
     }
     
+    // Update progress bar and answered count
     updateProgressBar();
     updateAnsweredCount();
 }
@@ -867,6 +670,9 @@ function submitTest() {
     let positiveMarks = 0;
     let negativeMarks = 0;
     
+    // Prepare detailed analysis data
+    const detailedAnalysis = [];
+    
     // Check each question
     for (let i = 1; i <= totalQuestions; i++) {
         const questionId = `q${i}`;
@@ -878,9 +684,24 @@ function submitTest() {
         
         if (!selected) {
             unattempted++;
+            // Update user response for unattempted
+            userResponses[questionId].userAnswer = '';
+            userResponses[questionId].selectedOption = '';
+            userResponses[questionId].isCorrect = false;
         } else {
             const userAnswer = selected.value.toLowerCase().trim();
             const correctAnswer = correctAnswers[questionId];
+            
+            // Add to detailed analysis
+            detailedAnalysis.push({
+                questionNumber: i,
+                questionText: userResponses[questionId].questionText.substring(0, 100) + (userResponses[questionId].questionText.length > 100 ? '...' : ''),
+                userAnswer: userAnswer.toUpperCase(),
+                correctAnswer: correctAnswer ? correctAnswer.toUpperCase() : '',
+                isCorrect: correctAnswer && userAnswer === correctAnswer,
+                section: userResponses[questionId].section,
+                marks: marksForQuestion
+            });
             
             if (correctAnswer && userAnswer === correctAnswer) {
                 correct++;
@@ -893,103 +714,83 @@ function submitTest() {
         }
     }
     
-    // Calculate net score
+    // Calculate net score (allow negative scores)
     totalMarks = positiveMarks - negativeMarks;
-    if (totalMarks < 0) totalMarks = 0;
     
-    // Calculate educational scores
-    const educationScores = calculateEducationalScores();
-    
-    // Calculate test score out of 55
-    const testScore55 = (totalMarks / totalPossibleMarks) * testConfig.convertedMcqMarks;
-    
-    // Calculate total merit score (100)
-    const totalMerit = testScore55 + educationScores.sscScore + educationScores.hscScore;
+    // Calculate percentage based on total possible marks
+    const percentage = totalPossibleMarks > 0 ? ((totalMarks / totalPossibleMarks) * 100).toFixed(2) : 0;
     
     // Generate test ID
     const testId = "BUP-" + Date.now().toString().substr(-8);
     
-    // Calculate time taken
+    // Calculate time taken (in minutes)
     const start = new Date(startTime);
     const end = new Date(endTime);
     const durationSeconds = Math.round((end - start) / 1000);
     const durationMinutes = (durationSeconds / 60).toFixed(2);
     
     // Show results
-    showResults(correct, wrong, unattempted, totalMarks, testScore55, educationScores, totalMerit, 
-                testId, durationMinutes, positiveMarks, negativeMarks);
+    showResults(correct, wrong, unattempted, totalMarks, percentage, testId, durationMinutes, positiveMarks, negativeMarks);
     
     // Send data to Google Sheets
-    sendToGoogleSheets(correct, wrong, unattempted, totalMarks, testScore55, educationScores, totalMerit,
-                      testId, durationSeconds, positiveMarks, negativeMarks);
+    sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage, testId, durationSeconds, positiveMarks, negativeMarks, detailedAnalysis);
 }
 
-function showResults(correct, wrong, unattempted, totalMarks, testScore55, educationScores, totalMerit,
-                    testId, durationMinutes, positiveMarks, negativeMarks) {
+function showResults(correct, wrong, unattempted, totalMarks, percentage, testId, durationMinutes, positiveMarks, negativeMarks) {
+    document.getElementById('finalScore').textContent = totalMarks.toFixed(2);
+    if (totalMarks < 0) {
+        document.getElementById('finalScore').className = 'score-display negative';
+    } else {
+        document.getElementById('finalScore').className = 'score-display';
+    }
     
-    document.getElementById('finalScore').textContent = totalMerit.toFixed(2);
-    document.getElementById('finalScore').className = 'score-display';
+    document.getElementById('correctCount').textContent = correct;
+    document.getElementById('wrongCount').textContent = wrong;
+    document.getElementById('unattemptedCount').textContent = unattempted;
+    document.getElementById('netScore').textContent = totalMarks.toFixed(2);
     
-    document.getElementById('testScore55').textContent = testScore55.toFixed(2);
-    document.getElementById('sscScore25').textContent = educationScores.sscScore.toFixed(2);
-    document.getElementById('hscScore20').textContent = educationScores.hscScore.toFixed(2);
-    document.getElementById('totalMerit100').textContent = totalMerit.toFixed(2);
+    if (totalMarks < 0) {
+        document.getElementById('netScore').className = 'result-value negative';
+    } else {
+        document.getElementById('netScore').className = 'result-value';
+    }
     
     document.getElementById('resultName').textContent = document.getElementById('name').value;
     document.getElementById('resultEmail').textContent = document.getElementById('email').value;
-    document.getElementById('resultPhone').textContent = document.getElementById('phone').value;
     document.getElementById('testId').textContent = testId;
     document.getElementById('testDuration').textContent = durationMinutes;
-    document.getElementById('resultSscType').textContent = educationScores.sscType.toUpperCase();
-    document.getElementById('resultSscMarks').textContent = educationScores.sscMarks;
-    document.getElementById('resultHscType').textContent = educationScores.hscType.toUpperCase();
-    document.getElementById('resultHscMarks').textContent = educationScores.hscMarks;
+    document.getElementById('questionsAttempted').textContent = totalQuestions - unattempted;
     
-    // Set result message
+    // Set result message based on score
     let message = "";
-    if (totalMerit >= 80) {
-        message = "Excellent! You have a very high chance of admission.";
-    } else if (totalMerit >= 60) {
-        message = "Good performance! You have a decent chance of admission.";
-    } else if (totalMerit >= 40) {
-        message = "Fair performance. Keep improving!";
+    const percentageNum = parseFloat(percentage);
+    if (percentageNum >= 80) {
+        message = "Outstanding! You have an excellent chance of getting admission.";
+    } else if (percentageNum >= 60) {
+        message = "Good job! You have a decent chance of getting admission.";
+    } else if (percentageNum >= 40) {
+        message = "Fair performance. Consider practicing more.";
+    } else if (percentageNum >= 0) {
+        message = "You need more preparation. Keep practicing!";
     } else {
-        message = "Work harder for better results next time.";
+        message = "Negative score! Review the concepts and try again.";
     }
     document.getElementById('resultMessage').textContent = message;
     
     // Show result overlay
     document.getElementById('resultOverlay').style.display = 'flex';
+    
+    // Hide fixed timer
     document.getElementById('fixedTimer').style.display = 'none';
     
     // Start redirect countdown
     startRedirectCountdown();
 }
 
-function sendToGoogleSheets(correct, wrong, unattempted, totalMarks, testScore55, educationScores, totalMerit,
-                           testId, durationSeconds, positiveMarks, negativeMarks) {
-    
-    // Prepare analysis data (user answers for each question)
-    const analysisData = [];
-    for (let i = 1; i <= totalQuestions; i++) {
-        const questionId = `q${i}`;
-        const userAnswer = userAnswers[questionId] || 'Unattempted';
-        const correctAnswer = correctAnswers[questionId] || 'Unknown';
-        const isCorrect = (userAnswer === correctAnswer && userAnswer !== 'Unattempted');
-        
-        analysisData.push({
-            testId: testId,
-            questionNo: i,
-            userAnswer: userAnswer.toUpperCase(),
-            correctAnswer: correctAnswer.toUpperCase(),
-            isCorrect: isCorrect ? 'Yes' : 'No',
-            questionText: questionsData[i-1]?.Question || `Question ${i}`,
-            timestamp: new Date().toISOString()
-        });
-    }
+function sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage, testId, durationSeconds, positiveMarks, negativeMarks, detailedAnalysis) {
+    const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
     
     const data = {
-        // Results data
         testId: testId,
         name: document.getElementById("name").value,
         email: document.getElementById("email").value,
@@ -1002,25 +803,14 @@ function sendToGoogleSheets(correct, wrong, unattempted, totalMarks, testScore55
         unattempted: unattempted,
         positiveMarks: positiveMarks.toFixed(2),
         negativeMarks: negativeMarks.toFixed(2),
-        totalTestMarks: totalMarks.toFixed(2),
-        testScore55: testScore55.toFixed(2),
-        sscType: educationScores.sscType,
-        sscMarks: educationScores.sscMarks,
-        sscScore25: educationScores.sscScore.toFixed(2),
-        hscType: educationScores.hscType,
-        hscMarks: educationScores.hscMarks,
-        hscScore20: educationScores.hscScore.toFixed(2),
-        totalMerit100: totalMerit.toFixed(2),
+        totalMarks: totalMarks.toFixed(2),
+        percentage: percentage,
         totalQuestions: totalQuestions,
-        
-        // Analysis data (will be stored in separate sheet)
-        analysisData: analysisData,
-        
+        source: "BUP Test System",
         timestamp: new Date().toISOString(),
-        device: isMobile ? "Mobile" : "Desktop"
+        device: isMobile ? "Mobile" : "Desktop",
+        detailedAnalysis: detailedAnalysis // Send detailed question-by-question analysis
     };
-    
-    const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
     
     fetch(url, {
         method: "POST",
@@ -1088,8 +878,10 @@ function resetTest() {
         document.getElementById('testForm').style.display = 'block';
         document.getElementById('quiz').style.display = 'none';
         
-        // Remove beforeunload listener
-        window.removeEventListener('beforeunload', arguments.callee);
+        // Reset form fields
+        document.getElementById('name').value = '';
+        document.getElementById('email').value = '';
+        document.getElementById('phone').value = '';
         
         // Scroll to top
         window.scrollTo(0, 0);
