@@ -74,13 +74,10 @@ function setupTouchEvents() {
     }, { passive: true });
 }
 
-// Function to process LaTeX - FIXED
+// Function to process LaTeX
 function processLaTeX(text) {
     if (!text || typeof text !== 'string') return text || '';
-    
-    // Preserve LaTeX exactly as it is - don't convert $...$
-    // MathJax will handle it directly
-    return text;
+    return text; // MathJax handles LaTeX directly
 }
 
 // Fetch questions from Google Sheets
@@ -126,7 +123,7 @@ async function loadQuestions() {
     }
 }
 
-// Process questions data - FIXED
+// Process questions data
 function processQuestions() {
     // Clear previous data
     correctAnswers = {};
@@ -134,39 +131,67 @@ function processQuestions() {
     userResponses = {};
     
     console.log("Processing questions...");
+    console.log("First question data structure:", questionsData[0]);
     
     // Process questions data
     questionsData.forEach((q, index) => {
         const questionId = `q${index + 1}`;
         
-        // Extract data - handle different possible property names
-        let questionText = q.Question || q.question || q['Question'] || '';
-        let optionA = q['Option A'] || q.optionA || q.optiona || '';
-        let optionB = q['Option B'] || q.optionB || q.optionb || '';
-        let optionC = q['Option C'] || q.optionC || q.optionc || '';
-        let optionD = q['Option D'] || q.optionD || q.optiond || '';
+        // DEBUG: Log the actual data structure
+        if (index < 3) {
+            console.log(`=== Question ${index + 1} Debug ===`);
+            console.log("Full object:", q);
+            console.log("All keys:", Object.keys(q));
+        }
         
-        // Normalize the answer
+        // EXTRACT DATA
+        let questionText = '';
+        let optionA = '';
+        let optionB = '';
+        let optionC = '';
+        let optionD = '';
         let answer = '';
-        if (q.Answer !== undefined) answer = String(q.Answer).trim().toLowerCase();
-        else if (q.answer !== undefined) answer = String(q.answer).trim().toLowerCase();
-        
-        // Get question type
         let type = 'General';
-        if (q.Type !== undefined) type = q.Type;
-        else if (q.type !== undefined) type = q.type;
-        
-        // Get marks
         let marksValue = testConfig.correctMark;
-        if (q.Marks !== undefined) marksValue = parseFloat(q.Marks) || testConfig.correctMark;
-        else if (q.marks !== undefined) marksValue = parseFloat(q.marks) || testConfig.correctMark;
         
-        // Store processed data
+        // Check all possible property names
+        for (let key in q) {
+            const value = q[key];
+            const lowerKey = key.toLowerCase();
+            
+            if (lowerKey.includes('question')) questionText = value || '';
+            else if (lowerKey.includes('option a') || lowerKey === 'optiona') optionA = value || '';
+            else if (lowerKey.includes('option b') || lowerKey === 'optionb') optionB = value || '';
+            else if (lowerKey.includes('option c') || lowerKey === 'optionc') optionC = value || '';
+            else if (lowerKey.includes('option d') || lowerKey === 'optiond') optionD = value || '';
+            else if (lowerKey.includes('answer')) answer = String(value).trim().toLowerCase();
+            else if (lowerKey.includes('type')) type = value || 'General';
+            else if (lowerKey.includes('mark')) marksValue = parseFloat(value) || testConfig.correctMark;
+        }
+        
+        // If still empty, try direct access
+        if (!questionText && q.Question) questionText = q.Question;
+        if (!questionText && q.question) questionText = q.question;
+        if (!optionA && q['Option A']) optionA = q['Option A'];
+        if (!optionA && q.optionA) optionA = q.optionA;
+        if (!answer && q.Answer) answer = String(q.Answer).trim().toLowerCase();
+        
+        // Log the extracted data
+        if (index < 3) {
+            console.log(`Extracted Q${index + 1}: "${questionText.substring(0, 50)}..."`);
+            console.log("Options:", optionA, optionB, optionC, optionD);
+            console.log("Answer:", answer, "Type:", type, "Marks:", marksValue);
+        }
+        
+        // Store processed data back on the question object
         q.questionText = questionText;
         q.optionA = optionA;
         q.optionB = optionB;
         q.optionC = optionC;
         q.optionD = optionD;
+        q.type = type;
+        q.answer = answer;
+        q.marks = marksValue;
         
         if (answer) {
             correctAnswers[questionId] = answer;
@@ -192,17 +217,6 @@ function processQuestions() {
             section: type,
             marks: marksValue
         };
-        
-        // Debug first 3 questions
-        if (index < 3) {
-            console.log(`Question ${index + 1}:`, {
-                question: questionText.substring(0, 50) + '...',
-                optionA: optionA,
-                optionB: optionB,
-                answer: answer,
-                type: type
-            });
-        }
     });
     
     // Update UI with loaded data
@@ -276,7 +290,7 @@ function updateFormInfo() {
         // Count questions per section
         const sectionCounts = {};
         questionsData.forEach(q => {
-            const type = q.Type || q.type || 'General';
+            const type = q.type || q.Type || 'General';
             sectionCounts[type] = (sectionCounts[type] || 0) + 1;
         });
         
@@ -303,7 +317,7 @@ function updateFormInfo() {
     document.getElementById('negativeMarks').textContent = testConfig.wrongPenalty;
 }
 
-// Validation functions (unchanged)
+// Validation functions
 function validateName() {
     const name = document.getElementById('name').value.trim();
     const errorElement = document.getElementById('nameError');
@@ -429,7 +443,7 @@ function updateFixedTimer() {
     }
 }
 
-// Display questions - FIXED for LaTeX
+// Display questions
 function displayQuestions() {
     const questionsContainer = document.getElementById('questionsContainer');
     const questionLoading = document.getElementById('questionLoading');
@@ -451,14 +465,19 @@ function displayQuestions() {
     // Group questions by type
     const questionsByType = {};
     questionsData.forEach((question, index) => {
-        let type = 'General';
-        if (question.Type) type = question.Type;
-        else if (question.type) type = question.type;
-        
+        let type = question.type || question.Type || 'General';
         if (!questionsByType[type]) {
             questionsByType[type] = [];
         }
-        questionsByType[type].push({...question, index: index + 1});
+        questionsByType[type].push({
+            ...question,
+            index: index + 1,
+            questionText: question.questionText || question.Question || '',
+            optionA: question.optionA || question['Option A'] || '',
+            optionB: question.optionB || question['Option B'] || '',
+            optionC: question.optionC || question['Option C'] || '',
+            optionD: question.optionD || question['Option D'] || ''
+        });
     });
     
     // Display questions by type
@@ -479,26 +498,32 @@ function displayQuestions() {
             questionDiv.className = 'question-container';
             questionDiv.id = `q${q.index}`;
             
-            // Use raw text - LaTeX will be rendered by MathJax
+            // Get question text and options
+            const questionText = q.questionText || `Question ${q.index}`;
+            const optionA = q.optionA || '';
+            const optionB = q.optionB || '';
+            const optionC = q.optionC || '';
+            const optionD = q.optionD || '';
+            
             questionDiv.innerHTML = `
                 <div class="question-number">${q.index}</div>
-                <div class="question-text">${escapeHtml(q.questionText || '')}</div>
+                <div class="question-text">${escapeHtml(questionText)}</div>
                 <div class="options-container">
                     <div class="option" onclick="selectOption('q${q.index}', 'a')">
                         <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
-                        <div class="option-label">A) ${escapeHtml(q.optionA || '')}</div>
+                        <div class="option-label">A) ${escapeHtml(optionA)}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'b')">
                         <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
-                        <div class="option-label">B) ${escapeHtml(q.optionB || '')}</div>
+                        <div class="option-label">B) ${escapeHtml(optionB)}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'c')">
                         <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
-                        <div class="option-label">C) ${escapeHtml(q.optionC || '')}</div>
+                        <div class="option-label">C) ${escapeHtml(optionC)}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'd')">
                         <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
-                        <div class="option-label">D) ${escapeHtml(q.optionD || '')}</div>
+                        <div class="option-label">D) ${escapeHtml(optionD)}</div>
                     </div>
                 </div>
             `;
@@ -512,13 +537,13 @@ function displayQuestions() {
     // Re-render MathJax after loading questions
     if (window.MathJax && MathJax.typeset) {
         setTimeout(() => {
-            console.log("Rendering MathJax...");
+            console.log("Rendering MathJax for LaTeX...");
             MathJax.typeset();
-        }, 500);
+        }, 1000);
     }
 }
 
-// Helper function to escape HTML but preserve LaTeX
+// Helper function to escape HTML
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -526,7 +551,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Timer functions (unchanged)
+// Timer functions
 function startTimer() {
     clearInterval(timerInterval);
     
@@ -698,7 +723,7 @@ function updateAnsweredCount() {
     document.getElementById('answeredCount').textContent = answered;
 }
 
-// Submit test and results functions (unchanged)
+// Submit test
 function submitTest() {
     clearInterval(timerInterval);
     
@@ -720,7 +745,7 @@ function submitTest() {
         const questionId = `q${i}`;
         const selected = document.querySelector(`input[name=${questionId}]:checked`);
         const questionData = questionsData[i - 1];
-        const marksForQuestion = questionData.Marks || questionData.marks || testConfig.correctMark;
+        const marksForQuestion = questionData.marks || questionData.Marks || testConfig.correctMark;
         
         totalPossibleMarks += parseFloat(marksForQuestion) || testConfig.correctMark;
         
@@ -855,7 +880,7 @@ function sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage,
         source: "BUP Test System",
         timestamp: new Date().toISOString(),
         device: isMobile ? "Mobile" : "Desktop",
-        detailedAnalysis: detailedAnalysis // Send detailed question-by-question analysis
+        detailedAnalysis: detailedAnalysis
     };
     
     fetch(url, {
