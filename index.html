@@ -1,60 +1,221 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Test Home</title>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f5f5f5;
-        }
-
-        .container {
-            text-align: center;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 0 12px rgba(0,0,0,0.1);
-        }
-
-        h1 {
-            margin-bottom: 20px;
-        }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 12px 22px;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #0056c2;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUP Admission Test</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
+  <div class="container">
+    <header>
+      <h1>BUP Admission Test</h1>
+      <p>Bangladesh University of Professionals - Mock Test Platform</p>
+      <i class="fas fa-university header-icon"></i>
+    </header>
 
-<div class="container">
-    <h1>Welcome to the Mock Test</h1>
-    <p>Click the button below to start.</p>
+    <div class="content">
+      <!-- Registration Form -->
+      <form id="testForm">
+        <h2 class="section-title"><i class="fas fa-user-circle"></i> Registration Information</h2>
+        
+        <div class="form-group">
+          <label for="name" class="required">Full Name</label>
+          <input type="text" id="name" placeholder="Enter your full name" required>
+          <div class="error-message" id="nameError">Please enter your full name</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="email" class="required">Email Address</label>
+          <input type="email" id="email" placeholder="Enter your email address" required>
+          <div class="error-message" id="emailError">Please enter a valid email address</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="phone" class="required">Phone Number</label>
+          <input type="text" id="phone" placeholder="Enter your phone number" required>
+          <div class="error-message" id="phoneError">Please enter a valid phone number</div>
+        </div>
+        
+        <div class="test-info">
+          <div class="info-item">
+            <i class="fas fa-clock"></i>
+            <span>Test Duration: <span id="testDurationInfo">30</span> minutes</span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-question-circle"></i>
+            <span>Total Questions: <span id="totalQuestionsCount">Loading...</span></span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-check-circle"></i>
+            <span>Marking: +<span id="correctMarking">1</span> for correct, -<span id="wrongMarking">0.25</span> for wrong</span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-book"></i>
+            <span>Sections: <span id="sectionsInfo">Loading...</span></span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="autoSubmitInfo">Auto-submission after 30 minutes</span>
+          </div>
+          <div class="info-item">
+            <i class="fas fa-minus-circle"></i>
+            <span>Negative scores allowed</span>
+          </div>
+        </div>
+        
+        <div class="loading-indicator" id="formLoading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading questions from Google Sheets...</p>
+        </div>
+        
+        <div class="error-alert" id="formError" style="display: none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <h3>Unable to Load Questions</h3>
+          <p id="errorMessage">Failed to load questions from Google Sheets. Please try again later.</p>
+          <button type="button" class="btn" onclick="loadQuestions()" style="margin-top: 10px; background: linear-gradient(to right, #666, #444);">
+            <i class="fas fa-redo"></i> Retry Loading Questions
+          </button>
+        </div>
+        
+        <div style="text-align: center;">
+          <button type="button" class="btn" onclick="validateAndStartTest()" id="startTestBtn" disabled>
+            <i class="fas fa-play-circle"></i> Start Test
+          </button>
+        </div>
+      </form>
 
-    <button onclick="location.href='mock_test_page.html'">
-        Start Test
-    </button>
-</div>
+      <!-- Quiz Section -->
+      <div id="quiz">
+        <div class="sticky-timer" id="stickyTimer">
+          <div class="timer-container">
+            <i class="fas fa-hourglass-half"></i>
+            <span class="timer-text">Time Remaining:</span>
+            <span class="timer-value" id="stickyTime">30:00</span>
+            <span class="timer-progress">
+              <span class="progress-fill" id="timerProgressFill"></span>
+            </span>
+            <span class="answered-count">
+              <i class="fas fa-check-circle"></i>
+              <span id="answeredCount">0</span>/<span id="totalQuestionsSticky">0</span>
+            </span>
+          </div>
+        </div>
+        
+        <div class="auto-submit-warning" id="autoSubmitWarning" style="display: none;">
+          <i class="fas fa-exclamation-circle"></i> Auto-submitting in <span id="warningCountdown">10</span> minutes!
+        </div>
+        
+        <div class="progress-bar">
+          <div class="progress" id="progressBar"></div>
+        </div>
+        
+        <h2 class="section-title"><i class="fas fa-pencil-alt"></i> Test Questions</h2>
+        
+        <div class="question-loading" id="questionLoading">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading questions...</p>
+        </div>
+        
+        <div class="error-alert" id="quizError" style="display: none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <h3>Unable to Load Questions</h3>
+          <p>There was an error loading the questions. Please refresh the page and try again.</p>
+        </div>
+        
+        <!-- Questions will be dynamically inserted here -->
+        <div id="questionsContainer"></div>
+        
+        <div class="submit-section">
+          <button type="button" class="btn" onclick="submitTest()" id="submitTestBtn">
+            <i class="fas fa-paper-plane"></i> Submit Test
+          </button>
+          <button type="button" class="btn" onclick="resetTest()" style="background: linear-gradient(to right, #777, #555);">
+            <i class="fas fa-redo"></i> Reset
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Admin Panel -->
+    <div class="admin-panel" id="adminPanel">
+      <h3 class="section-title"><i class="fas fa-cog"></i> Admin Controls</h3>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="btn" onclick="loadQuestions()" style="background: linear-gradient(to right, #666, #444);">
+          <i class="fas fa-sync-alt"></i> Refresh Questions
+        </button>
+        <button type="button" class="btn" onclick="showQuestionStats()" style="background: linear-gradient(to right, #2196F3, #1976D2);">
+          <i class="fas fa-chart-bar"></i> View Stats
+        </button>
+        <button type="button" class="btn" onclick="exportResults()" style="background: linear-gradient(to right, #4CAF50, #388E3C);">
+          <i class="fas fa-download"></i> Export Results
+        </button>
+      </div>
+      <div id="adminStats" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; display: none;">
+        <!-- Stats will appear here -->
+      </div>
+    </div>
+    
+    <footer>
+      <p>BUP Admission Test Mock Platform &copy; 2023 | All questions loaded from Google Sheets</p>
+      <p style="font-size: 0.8rem; margin-top: 5px;" id="questionSourceInfo">Loading question source info...</p>
+      <p style="font-size: 0.7rem; margin-top: 5px; color: #999;">Last updated: <span id="lastUpdated">--</span></p>
+    </footer>
+  </div>
 
+  <!-- Result Overlay -->
+  <div class="result-overlay" id="resultOverlay">
+    <div class="result-card">
+      <h2>Test Results</h2>
+      <div class="score-display" id="finalScore">0.0</div>
+      <p id="resultMessage">Your test has been evaluated successfully!</p>
+      
+      <div class="leaderboard-notice">
+        <i class="fas fa-trophy"></i>
+        <h3>Leaderboard Coming Soon!</h3>
+        <p>The official leaderboard with all participants' scores will be published shortly. Check back later to see where you rank!</p>
+      </div>
+      
+      <div class="result-details">
+        <div class="result-item">
+          <div class="result-label">Correct Answers</div>
+          <div class="result-value" id="correctCount">0</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">Wrong Answers</div>
+          <div class="result-value" id="wrongCount">0</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">Unattempted</div>
+          <div class="result-value" id="unattemptedCount">0</div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">Net Score</div>
+          <div class="result-value" id="netScore">0.0</div>
+        </div>
+      </div>
+      
+      <div style="margin-top: 20px; text-align: left;">
+        <p><strong>Name:</strong> <span id="resultName"></span></p>
+        <p><strong>Email:</strong> <span id="resultEmail"></span></p>
+        <p><strong>Test ID:</strong> <span id="testId"></span></p>
+        <p><strong>Duration:</strong> <span id="testDuration"></span> minutes</p>
+        <p><strong>Questions Attempted:</strong> <span id="questionsAttempted"></span> of <span id="totalQuestionsResult"></span></p>
+        <p><strong>Marking System:</strong> +<span id="marksPerQuestion">1</span> for correct, -<span id="negativeMarks">0.25</span> for wrong</p>
+      </div>
+      
+      <div class="redirect-message" id="redirectMessage">
+        <i class="fas fa-external-link-alt"></i>
+        <p>You will be redirected to the home page in <span class="redirect-countdown" id="redirectCountdown">5</span> seconds</p>
+      </div>
+      
+      <button class="close-result" onclick="redirectNow()">Go to Home Now</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
