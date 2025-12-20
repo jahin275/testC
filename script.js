@@ -80,6 +80,9 @@ function processLaTeX(text) {
     // Replace $...$ with \\(...\\) for inline math
     let processed = text.replace(/\$(.*?)\$/g, '\\($1\\)');
     
+    // Handle fractions and other LaTeX
+    processed = processed.replace(/\\frac{(\d+)}{(\d+)}/g, '\\(\\frac{$1}{$2}\\)');
+    
     return processed;
 }
 
@@ -109,6 +112,7 @@ async function loadQuestions() {
             totalQuestions = questionsData.length;
             
             console.log(`Loaded ${totalQuestions} questions from Google Sheets`);
+            console.log("First question data:", questionsData[0]);
             
             // Process questions
             processQuestions();
@@ -125,59 +129,115 @@ async function loadQuestions() {
     }
 }
 
-// Process questions data
+// FIXED: Process questions data
 function processQuestions() {
     // Clear previous data
     correctAnswers = {};
     questionSections.clear();
     userResponses = {};
     
+    console.log("Processing questions...");
+    
     // Process questions data
     questionsData.forEach((q, index) => {
         const questionId = `q${index + 1}`;
         
-        // Normalize the answer
-        let answer = '';
-        if (q.answer) answer = String(q.answer).trim().toLowerCase();
-        else if (q.Answer) answer = String(q.Answer).trim().toLowerCase();
-        else if (q.ANSWER) answer = String(q.ANSWER).trim().toLowerCase();
-        else if (q['Answer']) answer = String(q['Answer']).trim().toLowerCase();
+        // DEBUG: Log raw data for first few questions
+        if (index < 3) {
+            console.log(`Question ${index + 1} raw data:`, q);
+            console.log("Keys:", Object.keys(q));
+        }
         
+        // IMPORTANT: Check for different possible property names
+        // Try all possible property names for each field
+        
+        // Question text
+        let questionText = '';
+        if (q.Question !== undefined) questionText = q.Question;
+        else if (q.question !== undefined) questionText = q.question;
+        else if (q['Question'] !== undefined) questionText = q['Question'];
+        else if (q['question'] !== undefined) questionText = q['question'];
+        
+        // Options
+        let optionA = '';
+        if (q['Option A'] !== undefined) optionA = q['Option A'];
+        else if (q.optionA !== undefined) optionA = q.optionA;
+        else if (q['option a'] !== undefined) optionA = q['option a'];
+        
+        let optionB = '';
+        if (q['Option B'] !== undefined) optionB = q['Option B'];
+        else if (q.optionB !== undefined) optionB = q.optionB;
+        else if (q['option b'] !== undefined) optionB = q['option b'];
+        
+        let optionC = '';
+        if (q['Option C'] !== undefined) optionC = q['Option C'];
+        else if (q.optionC !== undefined) optionC = q.optionC;
+        else if (q['option c'] !== undefined) optionC = q['option c'];
+        
+        let optionD = '';
+        if (q['Option D'] !== undefined) optionD = q['Option D'];
+        else if (q.optionD !== undefined) optionD = q.optionD;
+        else if (q['option d'] !== undefined) optionD = q['option d'];
+        
+        // Answer
+        let answer = '';
+        if (q.Answer !== undefined) answer = String(q.Answer).trim().toLowerCase();
+        else if (q.answer !== undefined) answer = String(q.answer).trim().toLowerCase();
+        else if (q['Answer'] !== undefined) answer = String(q['Answer']).trim().toLowerCase();
+        
+        // Type
+        let type = 'General';
+        if (q.Type !== undefined) type = q.Type;
+        else if (q.type !== undefined) type = q.type;
+        else if (q['Type'] !== undefined) type = q['Type'];
+        
+        // Marks
+        let marksValue = testConfig.correctMark;
+        if (q.Marks !== undefined) marksValue = parseFloat(q.Marks) || testConfig.correctMark;
+        else if (q.marks !== undefined) marksValue = parseFloat(q.marks) || testConfig.correctMark;
+        
+        // Process LaTeX
+        q.questionText = processLaTeX(questionText);
+        q.optionA = processLaTeX(optionA);
+        q.optionB = processLaTeX(optionB);
+        q.optionC = processLaTeX(optionC);
+        q.optionD = processLaTeX(optionD);
+        
+        // Store the original values for display
+        q.displayQuestion = questionText;
+        q.displayOptionA = optionA;
+        q.displayOptionB = optionB;
+        q.displayOptionC = optionC;
+        q.displayOptionD = optionD;
+        
+        // Store answer
         if (answer) {
             correctAnswers[questionId] = answer;
         }
         
-        // Get question type
-        const type = q.Type || q.type || q['Type'] || 'General';
+        // Store type
         questionSections.add(type);
         
-        // Store marks per question
-        q.marksValue = parseFloat(q.Marks || q.marks || q['Marks'] || testConfig.correctMark) || testConfig.correctMark;
-        
-        // Store question text and options with LaTeX processing
-        q.questionText = processLaTeX(q.Question || q.question || q['Question'] || '');
-        q.optionA = processLaTeX(q['Option A'] || q.optiona || q['option a'] || q.optionA || '');
-        q.optionB = processLaTeX(q['Option B'] || q.optionb || q['option b'] || q.optionB || '');
-        q.optionC = processLaTeX(q['Option C'] || q.optionc || q['option c'] || q.optionC || '');
-        q.optionD = processLaTeX(q['Option D'] || q.optiond || q['option d'] || q.optionD || '');
-        
-        // Initialize user response for this question
+        // Initialize user response
         userResponses[questionId] = {
             questionNumber: index + 1,
-            questionText: q.Question || q.question || q['Question'] || '',
+            questionText: questionText,
             userAnswer: '',
             correctAnswer: answer,
             isCorrect: false,
             selectedOption: '',
             options: {
-                A: q['Option A'] || q.optionA || '',
-                B: q['Option B'] || q.optionB || '',
-                C: q['Option C'] || q.optionC || '',
-                D: q['Option D'] || q.optionD || ''
+                A: optionA,
+                B: optionB,
+                C: optionC,
+                D: optionD
             },
             section: type,
-            marks: q.marksValue
+            marks: marksValue
         };
+        
+        // Add processed data back to question object
+        q.processed = true;
     });
     
     // Update UI with loaded data
@@ -188,42 +248,46 @@ function processQuestions() {
     document.getElementById('formLoading').style.display = 'none';
     document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
     document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+    
+    console.log(`Processed ${totalQuestions} questions`);
+    console.log("Correct answers:", correctAnswers);
 }
 
 // Load sample questions (fallback)
 function loadSampleQuestions() {
     console.log('Loading sample questions...');
     
+    // Use actual data from your CSV
     questionsData = [
         {
-            Question: "What is the capital of Bangladesh?",
-            "Option A": "Chittagong",
-            "Option B": "Dhaka", 
-            "Option C": "Khulna",
-            "Option D": "Rajshahi",
-            Answer: "B",
-            Type: "General Knowledge",
-            Marks: "1"
+            "Question": "If 2 men or 3 women can do a piece of work in 42 days, then 6 men and 12 women together can finish it in—",
+            "Option A": "4 days",
+            "Option B": "6 days",
+            "Option C": "8 days",
+            "Option D": "9 days",
+            "Answer": "B",
+            "Type": "Math",
+            "Marks": "1"
         },
         {
-            Question: "Solve: \\(2x + 3 = 11\\)",
-            "Option A": "x = 2",
-            "Option B": "x = 3",
-            "Option C": "x = 4", 
-            "Option D": "x = 5",
-            Answer: "C",
-            Type: "Mathematics",
-            Marks: "1"
+            "Question": "When $10\\frac{1}{10}$ percent of 5000 is subtracted from $\\frac{1}{10}$ of 5,000 the difference is—",
+            "Option A": "0",
+            "Option B": "50",
+            "Option C": "450",
+            "Option D": "495",
+            "Answer": "B",
+            "Type": "Math",
+            "Marks": "1"
         },
         {
-            Question: "Which planet is known as the Red Planet?",
-            "Option A": "Venus",
-            "Option B": "Mars",
-            "Option C": "Jupiter",
-            "Option D": "Saturn",
-            Answer: "B",
-            Type: "Science",
-            Marks: "1"
+            "Question": "What is the greatest positive integer $n$ such that $2^n$ is a factor of $12^{10}$?",
+            "Option A": "10",
+            "Option B": "30",
+            "Option C": "20",
+            "Option D": "40",
+            "Answer": "C",
+            "Type": "Math",
+            "Marks": "1"
         }
     ];
     
@@ -401,6 +465,7 @@ function updateFixedTimer() {
     }
 }
 
+// FIXED: Display questions function
 function displayQuestions() {
     const questionsContainer = document.getElementById('questionsContainer');
     const questionLoading = document.getElementById('questionLoading');
@@ -417,15 +482,23 @@ function displayQuestions() {
         return;
     }
     
+    console.log("Displaying questions...");
+    
     // Group questions by type
     const questionsByType = {};
     questionsData.forEach((question, index) => {
-        const type = question.Type || question.type || question['Type'] || 'General';
+        let type = 'General';
+        if (question.Type) type = question.Type;
+        else if (question.type) type = question.type;
+        else if (question['Type']) type = question['Type'];
+        
         if (!questionsByType[type]) {
             questionsByType[type] = [];
         }
         questionsByType[type].push({...question, index: index + 1});
     });
+    
+    console.log("Questions grouped by type:", questionsByType);
     
     // Display questions by type
     Object.keys(questionsByType).forEach(type => {
@@ -445,25 +518,34 @@ function displayQuestions() {
             questionDiv.className = 'question-container';
             questionDiv.id = `q${q.index}`;
             
+            // Use display properties or fall back to processed properties
+            const questionText = q.displayQuestion || q.questionText || '';
+            const optionA = q.displayOptionA || q.optionA || '';
+            const optionB = q.displayOptionB || q.optionB || '';
+            const optionC = q.displayOptionC || q.optionC || '';
+            const optionD = q.displayOptionD || q.optionD || '';
+            
+            console.log(`Question ${q.index}:`, questionText);
+            
             questionDiv.innerHTML = `
                 <div class="question-number">${q.index}</div>
-                <div class="question-text">${escapeHtml(q.questionText || '')}</div>
+                <div class="question-text">${questionText}</div>
                 <div class="options-container">
                     <div class="option" onclick="selectOption('q${q.index}', 'a')">
                         <input type="radio" name="q${q.index}" value="a" id="q${q.index}a">
-                        <div class="option-label">A) ${escapeHtml(q.optionA || '')}</div>
+                        <div class="option-label">A) ${optionA}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'b')">
                         <input type="radio" name="q${q.index}" value="b" id="q${q.index}b">
-                        <div class="option-label">B) ${escapeHtml(q.optionB || '')}</div>
+                        <div class="option-label">B) ${optionB}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'c')">
                         <input type="radio" name="q${q.index}" value="c" id="q${q.index}c">
-                        <div class="option-label">C) ${escapeHtml(q.optionC || '')}</div>
+                        <div class="option-label">C) ${optionC}</div>
                     </div>
                     <div class="option" onclick="selectOption('q${q.index}', 'd')">
                         <input type="radio" name="q${q.index}" value="d" id="q${q.index}d">
-                        <div class="option-label">D) ${escapeHtml(q.optionD || '')}</div>
+                        <div class="option-label">D) ${optionD}</div>
                     </div>
                 </div>
             `;
@@ -476,17 +558,12 @@ function displayQuestions() {
     
     // Re-render MathJax after loading questions
     if (window.MathJax && MathJax.typesetPromise) {
-        MathJax.typesetPromise().catch((err) => {
-            console.log('MathJax typeset promise error: ', err.message);
-        });
+        setTimeout(() => {
+            MathJax.typesetPromise().catch((err) => {
+                console.log('MathJax typeset promise error: ', err.message);
+            });
+        }, 500);
     }
-}
-
-// Helper function to escape HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
 
 function startTimer() {
@@ -620,9 +697,12 @@ function selectOption(questionId, option) {
         selectedOption.parentElement.classList.add('selected');
         
         // Update user response
-        userResponses[questionId].userAnswer = option.toLowerCase();
-        userResponses[questionId].selectedOption = option.toUpperCase();
-        userResponses[questionId].isCorrect = (option.toLowerCase() === userResponses[questionId].correctAnswer);
+        const qNum = parseInt(questionId.replace('q', ''));
+        if (userResponses[questionId]) {
+            userResponses[questionId].userAnswer = option.toLowerCase();
+            userResponses[questionId].selectedOption = option.toUpperCase();
+            userResponses[questionId].isCorrect = (option.toLowerCase() === userResponses[questionId].correctAnswer);
+        }
         
         // Add haptic feedback on mobile
         if (isMobile && navigator.vibrate) {
@@ -678,38 +758,42 @@ function submitTest() {
         const questionId = `q${i}`;
         const selected = document.querySelector(`input[name=${questionId}]:checked`);
         const questionData = questionsData[i - 1];
-        const marksForQuestion = questionData.marksValue || testConfig.correctMark;
+        const marksForQuestion = questionData.Marks || questionData.marks || testConfig.correctMark;
         
-        totalPossibleMarks += marksForQuestion;
+        totalPossibleMarks += parseFloat(marksForQuestion) || testConfig.correctMark;
         
         if (!selected) {
             unattempted++;
             // Update user response for unattempted
-            userResponses[questionId].userAnswer = '';
-            userResponses[questionId].selectedOption = '';
-            userResponses[questionId].isCorrect = false;
+            if (userResponses[questionId]) {
+                userResponses[questionId].userAnswer = '';
+                userResponses[questionId].selectedOption = '';
+                userResponses[questionId].isCorrect = false;
+            }
         } else {
             const userAnswer = selected.value.toLowerCase().trim();
             const correctAnswer = correctAnswers[questionId];
             
             // Add to detailed analysis
-            detailedAnalysis.push({
-                questionNumber: i,
-                questionText: userResponses[questionId].questionText.substring(0, 100) + (userResponses[questionId].questionText.length > 100 ? '...' : ''),
-                userAnswer: userAnswer.toUpperCase(),
-                correctAnswer: correctAnswer ? correctAnswer.toUpperCase() : '',
-                isCorrect: correctAnswer && userAnswer === correctAnswer,
-                section: userResponses[questionId].section,
-                marks: marksForQuestion
-            });
-            
-            if (correctAnswer && userAnswer === correctAnswer) {
-                correct++;
-                positiveMarks += marksForQuestion;
-            } else {
-                wrong++;
-                const penalty = marksForQuestion * testConfig.wrongPenalty;
-                negativeMarks += penalty;
+            if (userResponses[questionId]) {
+                detailedAnalysis.push({
+                    questionNumber: i,
+                    questionText: userResponses[questionId].questionText.substring(0, 100) + (userResponses[questionId].questionText.length > 100 ? '...' : ''),
+                    userAnswer: userAnswer.toUpperCase(),
+                    correctAnswer: correctAnswer ? correctAnswer.toUpperCase() : '',
+                    isCorrect: correctAnswer && userAnswer === correctAnswer,
+                    section: userResponses[questionId].section,
+                    marks: marksForQuestion
+                });
+                
+                if (correctAnswer && userAnswer === correctAnswer) {
+                    correct++;
+                    positiveMarks += parseFloat(marksForQuestion) || testConfig.correctMark;
+                } else {
+                    wrong++;
+                    const penalty = (parseFloat(marksForQuestion) || testConfig.correctMark) * testConfig.wrongPenalty;
+                    negativeMarks += penalty;
+                }
             }
         }
     }
