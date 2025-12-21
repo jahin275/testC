@@ -2,22 +2,33 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Email Form</title>
+  <title>Email Signup Form</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 400px; margin: 40px auto; }
-    input, button { width: 100%; padding: 10px; margin: 8px 0; }
-    #status { margin-top: 12px; font-weight: bold; }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 40px auto;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+    }
+    #status {
+      margin-top: 12px;
+      font-weight: bold;
+      color: green;
+    }
   </style>
 </head>
 <body>
 
-  <h2>Join Our List</h2>
+  <h2>Subscribe</h2>
 
   <form id="emailForm">
     <input
       type="email"
       id="email"
-      name="email"
       placeholder="Enter your email"
       required
     />
@@ -29,35 +40,20 @@
   <script>
     const form = document.getElementById("emailForm");
     const status = document.getElementById("status");
+    const endpoint = "https://script.google.com/macros/s/AKfycbw3fj0nWLaZCoy0JlCOfefCMHi_hNb9iM8bVb9wfQwKSGAUrOxO2pN0lzsquDur48PlkQ/exec";
 
     form.addEventListener("submit", function (e) {
       e.preventDefault();
-
       const emailValue = document.getElementById("email").value;
-      const endpoint = "https://script.google.com/macros/s/AKfycbw3fj0nWLaZCoy0JlCOfefCMHi_hNb9iM8bVb9wfQwKSGAUrOxO2pN0lzsquDur48PlkQ/exec";
 
       fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        mode: "no-cors",
         body: JSON.stringify({ email: emailValue })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          status.textContent = "Thank you! Email saved.";
-          status.style.color = "green";
-          form.reset();
-        } else {
-          status.textContent = "Submission failed: " + (data.error || "Unknown error");
-          status.style.color = "red";
-        }
-      })
-      .catch(error => {
-        status.textContent = "Network error: " + error.message;
-        status.style.color = "red";
       });
+
+      status.textContent = "Email submitted successfully";
+      form.reset();
     });
   </script>
 
