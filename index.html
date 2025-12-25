@@ -737,9 +737,9 @@
       <!-- In the JU IBA Roll form section -->
 <div class="form-group">
   <label for="juIbaRoll" class="required">JU IBA Roll Number</label>
-  <input type="text" id="juIbaRoll" placeholder="Enter 7-digit roll number (e.g., 2023123)" required pattern="[0-9]{7}" inputmode="numeric">
+  <input type="text" id="juIbaRoll" placeholder="Enter 7-digit roll number (e.g., 6200100)" required pattern="[0-9]{7}" inputmode="numeric">
   <div class="error-message" id="juIbaRollError">Please enter a valid 7-digit roll number</div>
-  <small style="color: #666; font-size: 0.85rem; margin-top: 5px; display: block;">Must be exactly 7 digits (e.g., 2023123)</small>
+  <small style="color: #666; font-size: 0.85rem; margin-top: 5px; display: block;">Must be exactly 7 digits (e.g., 6200100)</small>
 </div>
         
         <div class="test-info">
@@ -776,7 +776,7 @@
         
         <div class="loading-indicator" id="formLoading">
           <i class="fas fa-spinner fa-spin"></i>
-          <p>Loading questions from Google Sheets...</p>
+          <p>Loading questions...</p>
         </div>
         
         <div class="error-alert" id="formError" style="display: none;">
@@ -840,7 +840,7 @@
     </div>
     
     <footer>
-      <p>JU IBA Mock Test Platform by Plan C &copy; 2025 | Questions loaded from Google Sheets</p>
+      <p>JU IBA Mock Test Platform by Plan C &copy; 2025</p>
       <p style="font-size: 0.8rem; margin-top: 5px;" id="questionSourceInfo">Loading question source info...</p>
       <p style="font-size: 0.7rem; margin-top: 5px; color: #999;">Last updated: <span id="lastUpdated">--</span></p>
     </footer>
