@@ -71,7 +71,7 @@ function validateJuIbaRoll() {
         return false;
     }
     
-    if (juIbaRoll.length < 3) {
+    if (juIbaRoll.length < 7) {
         errorElement.textContent = 'Roll number must be at least 3 characters';
         errorElement.style.display = 'block';
         return false;
