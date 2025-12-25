@@ -1,17 +1,19 @@
 // Global variables
 let startTime;
 let timerInterval;
-let timeLeft = 3600; // 60 minutes in seconds (60 * 60)
+let timeLeft = 3600; // 60 minutes in seconds
 let totalQuestions = 0;
 let questionsData = [];
 let correctAnswers = {};
 let redirectTimer;
 let redirectSeconds = 5;
 let questionSections = new Set();
+
+// UPDATED: Changed wrong penalty to 0.20
 let testConfig = {
     duration: 3600, // 60 minutes in seconds
     correctMark: 1,
-    wrongPenalty: 0.5, // 0.5 negative marks per wrong answer
+    wrongPenalty: 0.20, // CHANGED FROM 0.5 TO 0.20
     allowNegative: true
 };
 
@@ -23,7 +25,7 @@ const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('BUP Test System Initialized');
+    console.log('JU IBA Test System Initialized');
     console.log('Mobile device:', isMobile);
     
     loadQuestions();
@@ -37,6 +39,8 @@ function setupEventListeners() {
     document.getElementById('name').addEventListener('input', validateName);
     document.getElementById('email').addEventListener('input', validateEmail);
     document.getElementById('phone').addEventListener('input', validatePhone);
+    // NEW: JU IBA Roll validation
+    document.getElementById('juIbaRoll').addEventListener('input', validateJuIbaRoll);
     
     // Enter key to start test
     document.addEventListener('keypress', function(e) {
@@ -49,7 +53,6 @@ function setupEventListeners() {
     window.addEventListener('orientationchange', function() {
         setTimeout(function() {
             updateFixedTimer();
-            // Re-render MathJax after orientation change
             if (window.MathJax && MathJax.typeset) {
                 MathJax.typeset();
             }
@@ -57,9 +60,29 @@ function setupEventListeners() {
     });
 }
 
+// NEW: Validate JU IBA Roll
+function validateJuIbaRoll() {
+    const juIbaRoll = document.getElementById('juIbaRoll').value.trim();
+    const errorElement = document.getElementById('juIbaRollError');
+    
+    if (juIbaRoll === '') {
+        errorElement.textContent = 'Please enter your JU IBA Roll number';
+        errorElement.style.display = 'block';
+        return false;
+    }
+    
+    if (juIbaRoll.length < 3) {
+        errorElement.textContent = 'Roll number must be at least 3 characters';
+        errorElement.style.display = 'block';
+        return false;
+    }
+    
+    errorElement.style.display = 'none';
+    return true;
+}
+
 // Setup touch events for better mobile interaction
 function setupTouchEvents() {
-    // Add touch feedback to options
     document.addEventListener('touchstart', function(e) {
         if (e.target.closest('.option')) {
             e.target.closest('.option').classList.add('touch-active');
@@ -74,24 +97,17 @@ function setupTouchEvents() {
     }, { passive: true });
 }
 
-// Function to process LaTeX
-function processLaTeX(text) {
-    if (!text || typeof text !== 'string') return text || '';
-    return text; // MathJax handles LaTeX directly
-}
-
 // Fetch questions from Google Sheets
 async function loadQuestions() {
     try {
-        // Show loading state
         document.getElementById('formLoading').style.display = 'block';
         document.getElementById('formError').style.display = 'none';
         document.getElementById('startTestBtn').disabled = true;
         document.getElementById('questionSourceInfo').textContent = 'Loading questions...';
         document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
         
-        // Try to load from Google Sheets
-        const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
+        // UPDATED: New Google Apps Script URL
+        const url = "https://script.google.com/macros/s/AKfycbxyU5YiGXEG_BJ01lppuER_wENTpLE7wsbV0wqSB71QE-Kg9Xz43LbNKdoHm3pKf7Fo/exec";
         
         const response = await fetch(url);
         
@@ -108,7 +124,6 @@ async function loadQuestions() {
             console.log(`Loaded ${totalQuestions} questions from Google Sheets`);
             console.log("First question data:", questionsData[0]);
             
-            // Process questions
             processQuestions();
             
         } else {
@@ -117,15 +132,12 @@ async function loadQuestions() {
         
     } catch (error) {
         console.error("Error loading questions:", error);
-        
-        // Fallback to sample questions
         loadSampleQuestions();
     }
 }
 
 // Process questions data
 function processQuestions() {
-    // Clear previous data
     correctAnswers = {};
     questionSections.clear();
     userResponses = {};
@@ -133,18 +145,15 @@ function processQuestions() {
     console.log("Processing questions...");
     console.log("First question data structure:", questionsData[0]);
     
-    // Process questions data
     questionsData.forEach((q, index) => {
         const questionId = `q${index + 1}`;
         
-        // DEBUG: Log the actual data structure
         if (index < 3) {
             console.log(`=== Question ${index + 1} Debug ===`);
             console.log("Full object:", q);
             console.log("All keys:", Object.keys(q));
         }
         
-        // EXTRACT DATA
         let questionText = '';
         let optionA = '';
         let optionB = '';
@@ -154,7 +163,6 @@ function processQuestions() {
         let type = 'General';
         let marksValue = testConfig.correctMark;
         
-        // Check all possible property names
         for (let key in q) {
             const value = q[key];
             const lowerKey = key.toLowerCase();
@@ -169,21 +177,18 @@ function processQuestions() {
             else if (lowerKey.includes('mark')) marksValue = parseFloat(value) || testConfig.correctMark;
         }
         
-        // If still empty, try direct access
         if (!questionText && q.Question) questionText = q.Question;
         if (!questionText && q.question) questionText = q.question;
         if (!optionA && q['Option A']) optionA = q['Option A'];
         if (!optionA && q.optionA) optionA = q.optionA;
         if (!answer && q.Answer) answer = String(q.Answer).trim().toLowerCase();
         
-        // Log the extracted data
         if (index < 3) {
             console.log(`Extracted Q${index + 1}: "${questionText.substring(0, 50)}..."`);
             console.log("Options:", optionA, optionB, optionC, optionD);
             console.log("Answer:", answer, "Type:", type, "Marks:", marksValue);
         }
         
-        // Store processed data back on the question object
         q.questionText = questionText;
         q.optionA = optionA;
         q.optionB = optionB;
@@ -197,10 +202,8 @@ function processQuestions() {
             correctAnswers[questionId] = answer;
         }
         
-        // Store type
         questionSections.add(type);
         
-        // Initialize user response
         userResponses[questionId] = {
             questionNumber: index + 1,
             questionText: questionText,
@@ -219,10 +222,8 @@ function processQuestions() {
         };
     });
     
-    // Update UI with loaded data
     updateFormInfo();
     
-    // Enable start button
     document.getElementById('startTestBtn').disabled = false;
     document.getElementById('formLoading').style.display = 'none';
     document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} questions from Google Sheets`;
@@ -235,34 +236,23 @@ function processQuestions() {
 function loadSampleQuestions() {
     console.log('Loading sample questions...');
     
-    // Use actual data with LaTeX
     questionsData = [
         {
-            "Question": "If $f(x) = \\frac{x+2}{x-2}$ for all integers except $x=2$, which has the greatest value?",
-            "Option A": "$f(-1)$",
-            "Option B": "$f(0)$",
-            "Option C": "$f(1)$",
-            "Option D": "$f(3)$",
-            "Answer": "D",
-            "Type": "Math",
-            "Marks": "1"
-        },
-        {
-            "Question": "Solve: $x^2 + x = 1$",
-            "Option A": "$\\frac{-1 \\pm \\sqrt{5}}{2}$",
-            "Option B": "$\\frac{-2 \\pm \\sqrt{5}}{1}$",
-            "Option C": "$\\frac{1 \\pm \\sqrt{5}}{2}$",
-            "Option D": "$\\frac{-5 \\pm \\sqrt{1}}{2}$",
+            "Question": "What is the value of π to two decimal places?",
+            "Option A": "3.14",
+            "Option B": "3.15",
+            "Option C": "3.16",
+            "Option D": "3.17",
             "Answer": "A",
             "Type": "Math",
             "Marks": "1"
         },
         {
-            "Question": "If 2 men or 3 women can do a piece of work in 42 days, then 6 men and 12 women together can finish it in—",
-            "Option A": "4 days",
-            "Option B": "6 days",
-            "Option C": "8 days",
-            "Option D": "9 days",
+            "Question": "If 2x + 3 = 7, what is the value of x?",
+            "Option A": "1",
+            "Option B": "2",
+            "Option C": "3",
+            "Option D": "4",
             "Answer": "B",
             "Type": "Math",
             "Marks": "1"
@@ -270,31 +260,25 @@ function loadSampleQuestions() {
     ];
     
     totalQuestions = questionsData.length;
-    
-    // Process the sample questions
     processQuestions();
     document.getElementById('questionSourceInfo').textContent = `Loaded ${totalQuestions} sample questions`;
 }
 
 function updateFormInfo() {
-    // Update total questions count
     document.getElementById('totalQuestionsCount').textContent = totalQuestions;
     document.getElementById('fixedTotalQuestions').textContent = totalQuestions;
     document.getElementById('totalQuestionsResult').textContent = totalQuestions;
     
-    // Update sections info
     const sectionsArray = Array.from(questionSections);
     let sectionsText = "";
     
     if (sectionsArray.length > 0) {
-        // Count questions per section
         const sectionCounts = {};
         questionsData.forEach(q => {
             const type = q.type || q.Type || 'General';
             sectionCounts[type] = (sectionCounts[type] || 0) + 1;
         });
         
-        // Create sections text
         sectionsText = sectionsArray.map(section => {
             const count = sectionCounts[section] || 0;
             return `${section} (${count})`;
@@ -305,12 +289,11 @@ function updateFormInfo() {
     
     document.getElementById('sectionsInfo').textContent = sectionsText;
     
-    // Update test duration
     const durationMinutes = testConfig.duration / 60;
     document.getElementById('testDurationInfo').textContent = durationMinutes;
     document.getElementById('autoSubmitInfo').textContent = `Auto-submission after ${durationMinutes} minutes`;
     
-    // Update marking system display
+    // UPDATED: Display 0.20 instead of 0.5
     document.getElementById('correctMarking').textContent = testConfig.correctMark;
     document.getElementById('wrongMarking').textContent = testConfig.wrongPenalty;
     document.getElementById('marksPerQuestion').textContent = testConfig.correctMark;
@@ -368,19 +351,20 @@ function validatePhone() {
     return true;
 }
 
+// UPDATED: Include JU IBA Roll validation
 function validateAndStartTest() {
     const isNameValid = validateName();
     const isEmailValid = validateEmail();
     const isPhoneValid = validatePhone();
+    const isJuIbaRollValid = validateJuIbaRoll(); // NEW
     
-    // Validate that questions are loaded
     if (questionsData.length === 0) {
         alert("Questions are not loaded. Please refresh the page or check your connection.");
         loadQuestions();
         return;
     }
     
-    if (isNameValid && isEmailValid && isPhoneValid) {
+    if (isNameValid && isEmailValid && isPhoneValid && isJuIbaRollValid) { // UPDATED
         startTest();
     }
 }
@@ -388,37 +372,24 @@ function validateAndStartTest() {
 function startTest() {
     startTime = new Date().toISOString();
     
-    // Hide form and show quiz
     document.getElementById('testForm').style.display = 'none';
     document.getElementById('quiz').style.display = 'block';
-    
-    // Show fixed timer
     document.getElementById('fixedTimer').style.display = 'block';
     
-    // Show mobile floating submit button if on mobile
     if (isMobile) {
         document.getElementById('mobileFloatingSubmit').style.display = 'block';
     }
     
-    // Reset timer
     timeLeft = testConfig.duration;
     updateFixedTimerDisplay();
     document.getElementById('fixedTimer').className = 'fixed-timer-container';
     document.getElementById('autoSubmitWarning').style.display = 'none';
     
-    // Display questions
     displayQuestions();
-    
-    // Start the timer
     startTimer();
-    
-    // Update progress bar
     updateProgressBar();
-    
-    // Update fixed timer position
     updateFixedTimer();
     
-    // Setup beforeunload warning
     window.addEventListener('beforeunload', function(e) {
         if (document.getElementById('quiz').style.display !== 'none') {
             e.preventDefault();
@@ -427,14 +398,12 @@ function startTest() {
         }
     });
     
-    // Scroll to top
     setTimeout(() => {
         window.scrollTo(0, 0);
     }, 100);
 }
 
 function updateFixedTimer() {
-    // Ensure timer is at top
     const timer = document.getElementById('fixedTimer');
     if (timer) {
         timer.style.top = '0';
@@ -449,7 +418,6 @@ function displayQuestions() {
     const questionLoading = document.getElementById('questionLoading');
     const quizError = document.getElementById('quizError');
     
-    // Clear previous questions
     questionsContainer.innerHTML = '';
     questionLoading.style.display = 'block';
     quizError.style.display = 'none';
@@ -462,7 +430,6 @@ function displayQuestions() {
     
     console.log("Displaying questions...");
     
-    // Group questions by type
     const questionsByType = {};
     questionsData.forEach((question, index) => {
         let type = question.type || question.Type || 'General';
@@ -480,11 +447,9 @@ function displayQuestions() {
         });
     });
     
-    // Display questions by type
     Object.keys(questionsByType).forEach(type => {
         const typeQuestions = questionsByType[type];
         
-        // Add section header
         const sectionHeader = document.createElement('h3');
         sectionHeader.className = 'section-title';
         sectionHeader.style.fontSize = '1.2rem';
@@ -492,13 +457,11 @@ function displayQuestions() {
         sectionHeader.innerHTML = `<i class="fas fa-book"></i> ${type} (${typeQuestions.length} Questions)`;
         questionsContainer.appendChild(sectionHeader);
         
-        // Add questions for this section
         typeQuestions.forEach(q => {
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question-container';
             questionDiv.id = `q${q.index}`;
             
-            // Get question text and options
             const questionText = q.questionText || `Question ${q.index}`;
             const optionA = q.optionA || '';
             const optionB = q.optionB || '';
@@ -534,7 +497,6 @@ function displayQuestions() {
     
     questionLoading.style.display = 'none';
     
-    // Re-render MathJax after loading questions
     if (window.MathJax && MathJax.typeset) {
         setTimeout(() => {
             console.log("Rendering MathJax for LaTeX...");
@@ -558,43 +520,34 @@ function startTimer() {
     timerInterval = setInterval(() => {
         timeLeft--;
         
-        // Update timer display
         updateFixedTimerDisplay();
-        
-        // Update timer progress
         updateTimerProgress();
         
-        // Change timer color based on remaining time
         const timerElement = document.getElementById('fixedTimer');
-        if (timeLeft <= Math.floor(testConfig.duration * 0.25)) { // Last 15 minutes
+        if (timeLeft <= Math.floor(testConfig.duration * 0.25)) {
             timerElement.className = 'fixed-timer-container danger';
-        } else if (timeLeft <= Math.floor(testConfig.duration * 0.5)) { // Last 30 minutes
+        } else if (timeLeft <= Math.floor(testConfig.duration * 0.5)) {
             timerElement.className = 'fixed-timer-container warning';
         }
         
-        // Show warning when 10 minutes left
-        if (timeLeft === 600) { // 10 minutes = 600 seconds
+        if (timeLeft === 600) {
             document.getElementById('autoSubmitWarning').style.display = 'block';
             showNotification('10 minutes remaining! Auto-submit soon.');
         }
         
-        // Show warning when 5 minutes left
-        if (timeLeft === 300) { // 5 minutes
+        if (timeLeft === 300) {
             showNotification('5 minutes remaining! Hurry up!');
         }
         
-        // Show warning when 1 minute left
-        if (timeLeft === 60) { // 1 minute
+        if (timeLeft === 60) {
             showNotification('1 minute remaining! Submit now!');
         }
         
-        // Update warning countdown
         if (timeLeft <= 600 && timeLeft > 0) {
             const minutesLeft = Math.ceil(timeLeft / 60);
             document.getElementById('warningCountdown').textContent = minutesLeft;
         }
         
-        // Auto-submit when time is up
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
             document.getElementById('autoSubmitWarning').style.display = 'none';
@@ -616,7 +569,6 @@ function updateTimerProgress() {
     const progressPercentage = (timeLeft / testConfig.duration) * 100;
     document.getElementById('fixedTimerProgress').style.width = `${progressPercentage}%`;
     
-    // Change progress bar color based on time
     const progressFill = document.getElementById('fixedTimerProgress');
     if (timeLeft <= testConfig.duration * 0.25) {
         progressFill.style.background = 'linear-gradient(to right, #ff4500, #ff6a00)';
@@ -626,7 +578,6 @@ function updateTimerProgress() {
 }
 
 function showNotification(message) {
-    // Create notification element
     const notification = document.createElement('div');
     notification.className = 'notification';
     notification.innerHTML = `<i class="fas fa-bell"></i> ${message}`;
@@ -635,7 +586,7 @@ function showNotification(message) {
         top: 80px;
         left: 50%;
         transform: translateX(-50%);
-        background: #ff8c00;
+        background: #002147;
         color: white;
         padding: 12px 20px;
         border-radius: 8px;
@@ -647,7 +598,6 @@ function showNotification(message) {
     
     document.body.appendChild(notification);
     
-    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideUp 0.3s ease';
         setTimeout(() => notification.remove(), 300);
@@ -669,20 +619,17 @@ style.textContent = `
 document.head.appendChild(style);
 
 function selectOption(questionId, option) {
-    // Unselect all options for this question
     const options = document.querySelectorAll(`input[name=${questionId}]`);
     options.forEach(opt => {
         opt.checked = false;
         opt.parentElement.classList.remove('selected');
     });
     
-    // Select the clicked option
     const selectedOption = document.getElementById(`${questionId}${option}`);
     if (selectedOption) {
         selectedOption.checked = true;
         selectedOption.parentElement.classList.add('selected');
         
-        // Update user response
         const qNum = parseInt(questionId.replace('q', ''));
         if (userResponses[questionId]) {
             userResponses[questionId].userAnswer = option.toLowerCase();
@@ -690,13 +637,11 @@ function selectOption(questionId, option) {
             userResponses[questionId].isCorrect = (option.toLowerCase() === userResponses[questionId].correctAnswer);
         }
         
-        // Add haptic feedback on mobile
         if (isMobile && navigator.vibrate) {
             navigator.vibrate(50);
         }
     }
     
-    // Update progress bar and answered count
     updateProgressBar();
     updateAnsweredCount();
 }
@@ -720,7 +665,6 @@ function updateAnsweredCount() {
     }
     
     document.getElementById('fixedAnsweredCount').textContent = answered;
-    document.getElementById('answeredCount').textContent = answered;
 }
 
 // Submit test
@@ -737,10 +681,8 @@ function submitTest() {
     let positiveMarks = 0;
     let negativeMarks = 0;
     
-    // Prepare detailed analysis data
     const detailedAnalysis = [];
     
-    // Check each question
     for (let i = 1; i <= totalQuestions; i++) {
         const questionId = `q${i}`;
         const selected = document.querySelector(`input[name=${questionId}]:checked`);
@@ -751,7 +693,6 @@ function submitTest() {
         
         if (!selected) {
             unattempted++;
-            // Update user response for unattempted
             if (userResponses[questionId]) {
                 userResponses[questionId].userAnswer = '';
                 userResponses[questionId].selectedOption = '';
@@ -761,7 +702,6 @@ function submitTest() {
             const userAnswer = selected.value.toLowerCase().trim();
             const correctAnswer = correctAnswers[questionId];
             
-            // Add to detailed analysis
             if (userResponses[questionId]) {
                 detailedAnalysis.push({
                     questionNumber: i,
@@ -778,6 +718,7 @@ function submitTest() {
                     positiveMarks += parseFloat(marksForQuestion) || testConfig.correctMark;
                 } else {
                     wrong++;
+                    // UPDATED: Using 0.20 penalty
                     const penalty = (parseFloat(marksForQuestion) || testConfig.correctMark) * testConfig.wrongPenalty;
                     negativeMarks += penalty;
                 }
@@ -785,25 +726,18 @@ function submitTest() {
         }
     }
     
-    // Calculate net score (allow negative scores)
     totalMarks = positiveMarks - negativeMarks;
-    
-    // Calculate percentage based on total possible marks
     const percentage = totalPossibleMarks > 0 ? ((totalMarks / totalPossibleMarks) * 100).toFixed(2) : 0;
     
-    // Generate test ID
-    const testId = "BUP-" + Date.now().toString().substr(-8);
+    // UPDATED: Changed prefix to JU-
+    const testId = "JU-" + Date.now().toString().substr(-8);
     
-    // Calculate time taken (in minutes)
     const start = new Date(startTime);
     const end = new Date(endTime);
     const durationSeconds = Math.round((end - start) / 1000);
     const durationMinutes = (durationSeconds / 60).toFixed(2);
     
-    // Show results
     showResults(correct, wrong, unattempted, totalMarks, percentage, testId, durationMinutes, positiveMarks, negativeMarks);
-    
-    // Send data to Google Sheets
     sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage, testId, durationSeconds, positiveMarks, negativeMarks, detailedAnalysis);
 }
 
@@ -826,13 +760,14 @@ function showResults(correct, wrong, unattempted, totalMarks, percentage, testId
         document.getElementById('netScore').className = 'result-value';
     }
     
+    // UPDATED: Added JU IBA Roll display
     document.getElementById('resultName').textContent = document.getElementById('name').value;
     document.getElementById('resultEmail').textContent = document.getElementById('email').value;
+    document.getElementById('resultJuIbaRoll').textContent = document.getElementById('juIbaRoll').value; // NEW
     document.getElementById('testId').textContent = testId;
     document.getElementById('testDuration').textContent = durationMinutes;
     document.getElementById('questionsAttempted').textContent = totalQuestions - unattempted;
     
-    // Set result message based on score
     let message = "";
     const percentageNum = parseFloat(percentage);
     if (percentageNum >= 80) {
@@ -848,24 +783,23 @@ function showResults(correct, wrong, unattempted, totalMarks, percentage, testId
     }
     document.getElementById('resultMessage').textContent = message;
     
-    // Show result overlay
     document.getElementById('resultOverlay').style.display = 'flex';
-    
-    // Hide fixed timer
     document.getElementById('fixedTimer').style.display = 'none';
     
-    // Start redirect countdown
     startRedirectCountdown();
 }
 
+// UPDATED: Send data to new Google Apps Script
 function sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage, testId, durationSeconds, positiveMarks, negativeMarks, detailedAnalysis) {
-    const url = "https://script.google.com/macros/s/AKfycbyoYPdDK8clXKIJrKSuQSG6mERPP20LPfz-9YBnyWWyG8XkLjAhGzrKEKi62FvFyXoDbw/exec";
+    const url = "https://script.google.com/macros/s/AKfycbxyU5YiGXEG_BJ01lppuER_wENTpLE7wsbV0wqSB71QE-Kg9Xz43LbNKdoHm3pKf7Fo/exec";
     
+    // UPDATED: Added juIbaRoll to data
     const data = {
         testId: testId,
         name: document.getElementById("name").value,
         email: document.getElementById("email").value,
         phone: document.getElementById("phone").value,
+        juIbaRoll: document.getElementById("juIbaRoll").value, // NEW
         startTime: startTime,
         endTime: new Date().toISOString(),
         duration: durationSeconds.toString(),
@@ -877,7 +811,7 @@ function sendToGoogleSheets(correct, wrong, unattempted, totalMarks, percentage,
         totalMarks: totalMarks.toFixed(2),
         percentage: percentage,
         totalQuestions: totalQuestions,
-        source: "BUP Test System",
+        source: "JU IBA Test System by Plan C",
         timestamp: new Date().toISOString(),
         device: isMobile ? "Mobile" : "Desktop",
         detailedAnalysis: detailedAnalysis
@@ -920,7 +854,6 @@ function redirectNow() {
 
 function resetTest() {
     if (confirm("Are you sure you want to reset the test? All your answers will be lost.")) {
-        // Clear all selections
         for (let i = 1; i <= totalQuestions; i++) {
             const options = document.querySelectorAll(`input[name=q${i}]`);
             options.forEach(opt => {
@@ -929,32 +862,25 @@ function resetTest() {
             });
         }
         
-        // Reset timer
         clearInterval(timerInterval);
         timeLeft = testConfig.duration;
         updateFixedTimerDisplay();
         document.getElementById('fixedTimer').className = 'fixed-timer-container';
         document.getElementById('autoSubmitWarning').style.display = 'none';
         
-        // Reset progress bar and answered count
         document.getElementById('progressBar').style.width = '0%';
         document.getElementById('fixedAnsweredCount').textContent = '0';
-        document.getElementById('answeredCount').textContent = '0';
         
-        // Hide fixed timer and floating submit
         document.getElementById('fixedTimer').style.display = 'none';
         document.getElementById('mobileFloatingSubmit').style.display = 'none';
         
-        // Show form again
         document.getElementById('testForm').style.display = 'block';
         document.getElementById('quiz').style.display = 'none';
         
-        // Reset form fields
-        document.getElementById('name').value = '';
-        document.getElementById('email').value = '';
-        document.getElementById('phone').value = '';
+        // UPDATED: Keep form data except clear roll (optional)
+        // Uncomment if you want to clear roll too:
+        // document.getElementById('juIbaRoll').value = '';
         
-        // Scroll to top
         window.scrollTo(0, 0);
     }
 }
