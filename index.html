@@ -475,34 +475,28 @@
     <script>
         let studentsData = [];
 
-        // Load data from Google Sheets
+        // Google Apps Script Web App URL
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz6_fZbkjlPrGGDpUiS-MRkJWfZs9aGXqPAAL83gmdA4LyEpQHS9ogpBpO4Tsos-PDm/exec';
+
+        // Load data from Google Sheets via Apps Script
         async function loadData() {
             try {
-                const sheetId = '1uGuH9_qJly1qtzBTVmCxJCqvlsySEC8TWD6yVa9F_WA';
-                const gid = '0';
-                const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+                const response = await fetch(APPS_SCRIPT_URL);
                 
-                const response = await fetch(url);
-                const csvText = await response.text();
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data');
+                }
                 
-                Papa.parse(csvText, {
-                    header: true,
-                    dynamicTyping: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        studentsData = results.data;
-                        document.getElementById('loadingMessage').style.display = 'none';
-                        document.getElementById('mainContent').style.display = 'block';
-                        populateLeaderboard();
-                    },
-                    error: function(error) {
-                        document.getElementById('loadingMessage').innerHTML = 
-                            '<div class="error-message">Error loading data. Please refresh the page.</div>';
-                    }
-                });
+                const data = await response.json();
+                studentsData = data;
+                
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                populateLeaderboard();
             } catch (error) {
+                console.error('Error loading data:', error);
                 document.getElementById('loadingMessage').innerHTML = 
-                    '<div class="error-message">Error loading data. Please refresh the page.</div>';
+                    '<div class="error-message">Error loading data. Please refresh the page or contact admin.</div>';
             }
         }
 
