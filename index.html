@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>BUP Mock Test - 01 Results</title>
+    <title>JU IBA Mock Test - 01 Results</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
@@ -572,30 +572,29 @@
 </head>
 <body>
     <div class="container">
-        <div class="loading" id="loadingMessage">
+        <div class="loading" id="loadingMessage" style="display: none;">
             <i class="fas fa-spinner fa-spin"></i> Loading results data...
         </div>
 
-        <div id="mainContent" style="display: none;">
+        <div id="mainContent">
             <!-- Branding Header -->
             <div class="brand-header">
                 <div class="logo-container">
                     <div class="logo">
-                        <!-- Add your C.png logo here -->
                         <img src="https://via.placeholder.com/60/ff7e5f/ffffff?text=C" alt="Plan C Logo" id="logoImage">
                     </div>
                     <div class="brand-text">
                         <div class="brand-name">Plan C Academy</div>
-                        <div class="brand-tagline">BUP Test Preparation Experts</div>
+                        <div class="brand-tagline">JU IBA Test Preparation Experts</div>
                     </div>
                 </div>
             </div>
 
             <!-- Header -->
             <div class="header">
-                <h1 class="main-title">BUP Mock Test Results</h1>
+                <h1 class="main-title">JU IBA Mock Test Results</h1>
                 <p class="subtitle">Check your detailed performance and ranking</p>
-                <p class="test-id">Test ID: BUP Mock - 01</p>
+                <p class="test-id">Test ID: JU IBA Mock - 01</p>
             </div>
 
             <!-- Search Section -->
@@ -637,7 +636,7 @@
             <!-- Footer -->
             <div class="footer">
                 <p>© 2024 Plan C Academy. All rights reserved.</p>
-                <p>BUP Mock Test Results Portal v1.0</p>
+                <p>JU IBA Mock Test Results Portal v1.0</p>
             </div>
         </div>
     </div>
@@ -645,6 +644,8 @@
     <script>
         let studentsData = [];
         let currentStudent = null;
+        const CACHE_KEY = 'JU_IBAMock_Results_Cache';
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
         // Google Apps Script Web App URL
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRkefn_0bp6qoIjPCalbbc-sYeaYd19Tmg0ViY0tvmbjH-cWMZ3GcBbC4mxskLqg8XvQ/exec';
@@ -652,9 +653,62 @@
         // Update logo source
         document.getElementById('logoImage').src = 'C.png';
 
-        async function loadData() {
+        // Load cached data immediately
+        function loadCachedData() {
             try {
-                console.log('Fetching data from:', APPS_SCRIPT_URL);
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (!cached) return null;
+                
+                const { data, timestamp } = JSON.parse(cached);
+                
+                // Check if cache is still valid
+                if (Date.now() - timestamp < CACHE_DURATION) {
+                    console.log('Loading data from cache');
+                    return data;
+                } else {
+                    console.log('Cache expired');
+                    localStorage.removeItem(CACHE_KEY);
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error loading cached data:', error);
+                return null;
+            }
+        }
+
+        // Save data to cache
+        function saveToCache(data) {
+            try {
+                const cacheData = {
+                    data: data,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+                console.log('Data saved to cache');
+            } catch (error) {
+                console.error('Error saving to cache:', error);
+            }
+        }
+
+        async function loadData() {
+            // Try to load from cache first
+            const cachedData = loadCachedData();
+            
+            if (cachedData) {
+                studentsData = cachedData;
+                document.getElementById('mainContent').style.display = 'block';
+                populateLeaderboard();
+                // Refresh data in background
+                refreshDataInBackground();
+                return;
+            }
+            
+            // If no cache, show loading and fetch fresh data
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            
+            try {
+                console.log('Fetching fresh data from:', APPS_SCRIPT_URL);
                 
                 const response = await fetch(APPS_SCRIPT_URL);
                 
@@ -663,7 +717,7 @@
                 }
                 
                 const data = await response.json();
-                console.log('Data received:', data);
+                console.log('Fresh data received:', data);
                 
                 if (data.error) {
                     throw new Error(data.error);
@@ -675,21 +729,71 @@
                 
                 studentsData = data;
                 
+                // Save to cache
+                saveToCache(data);
+                
                 document.getElementById('loadingMessage').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
                 populateLeaderboard();
             } catch (error) {
                 console.error('Error loading data:', error);
+                
+                // If we have cached data (even if expired), use it as fallback
+                const expiredCache = localStorage.getItem(CACHE_KEY);
+                if (expiredCache) {
+                    try {
+                        const { data } = JSON.parse(expiredCache);
+                        studentsData = data;
+                        document.getElementById('loadingMessage').style.display = 'none';
+                        document.getElementById('mainContent').style.display = 'block';
+                        populateLeaderboard();
+                        
+                        document.getElementById('leaderboardDisplay').insertAdjacentHTML('beforebegin', `
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Note: Showing cached data. Could not fetch fresh data. ${error.message}
+                            </div>
+                        `);
+                        return;
+                    } catch (e) {
+                        // Cache is corrupted
+                    }
+                }
+                
                 document.getElementById('loadingMessage').innerHTML = `
                     <div class="error-message">
                         <i class="fas fa-exclamation-triangle"></i><br>
                         Error loading data: ${error.message}<br>
-                        <small>Please check the console for details or contact admin.</small><br>
+                        <small>Please check your internet connection or contact admin.</small><br>
                         <button onclick="location.reload()" class="back-button" style="margin-top: 15px;">
                             <i class="fas fa-sync"></i> Retry
                         </button>
                     </div>
                 `;
+            }
+        }
+
+        // Refresh data in background without blocking UI
+        async function refreshDataInBackground() {
+            try {
+                console.log('Refreshing data in background');
+                const response = await fetch(APPS_SCRIPT_URL);
+                
+                if (!response.ok) {
+                    console.log('Background refresh failed:', response.status);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (!data.error && Array.isArray(data) && data.length > 0) {
+                    studentsData = data;
+                    saveToCache(data);
+                    populateLeaderboard();
+                    console.log('Background data refresh successful');
+                }
+            } catch (error) {
+                console.log('Background refresh error:', error);
             }
         }
 
@@ -876,7 +980,7 @@
                             <img src="C.png" alt="Plan C Logo">
                         </div>
                         <div class="header">
-                            <h1>BUP Mock Test Result</h1>
+                            <h1>JU IBA Mock Test Result</h1>
                             <h3>${currentStudent.Name}</h3>
                             <p>Email: ${currentStudent.Email} | Rank: ${currentStudent.Rank}</p>
                         </div>
@@ -900,7 +1004,7 @@
                             </div>
                         `).join('')}
                         <div style="text-align: center; margin-top: 30px; color: #666;">
-                            <p>© 2024 Plan C Academy | Generated from BUP Mock Test Portal</p>
+                            <p>© 2024 Plan C Academy | Generated from JU IBA Mock Test Portal</p>
                         </div>
                     </body>
                 </html>
@@ -922,7 +1026,13 @@
         }
 
         // Load data on page load
-        window.onload = loadData;
+        window.onload = function() {
+            // Show main content immediately
+            document.getElementById('mainContent').style.display = 'block';
+            
+            // Load data (will use cache if available)
+            loadData();
+        };
     </script>
 </body>
 </html>
