@@ -773,12 +773,11 @@
                 </div>
 
                 <div class="subjects-grid">
-                    ${createSubjectCard('Analytical', student['Analytical Right'], student['Analytical Wrong'], student['Comment'])}
+                    ${createSubjectCard('IQ', student['IQ Right'], student['IQ Wrong'], student['Comment'])}
                     ${createSubjectCard('English', student['English Right'], student['English Wrong'], student['Comment.1'])}
                     ${createSubjectCard('Math', student['Math Right'], student['Math Wrong'], student['Comment.2'])}
                     ${createSubjectCard('GK', student['GK Right'], student['GK Wrong'], student['Comment.3'])}
-                    ${createSubjectCard('Statistics', student['Statistics Right'], student['Statistics Wrong'], student['Comment.4'])}
-                    ${createSubjectCard('Economics', student['Economics Right'], student['Economics Wrong'], student['Comment.5'])}
+                    ${createSubjectCard('Bangla', student['Bangla Right'], student['Bangla Wrong'], student['Comment.4'])}
                 </div>
 
                 <div class="action-buttons">
@@ -834,11 +833,11 @@
 
         function getSubjectIcon(subject) {
             const icons = {
-                'Analytical': 'fas fa-brain',
+                'IQ': 'fas fa-brain',
                 'English': 'fas fa-language',
                 'Math': 'fas fa-calculator',
                 'GK': 'fas fa-globe-asia',
-                'Statistics': 'fas fa-chart-bar',
+                'Bangla': 'fas fa-chart-bar',
                 'Economics': 'fas fa-coins'
             };
             return icons[subject] || 'fas fa-book';
@@ -889,16 +888,16 @@
                         </div>
                         <hr>
                         <h3>Subject-wise Performance</h3>
-                        ${['Analytical', 'English', 'Math', 'GK', 'Statistics', 'Economics'].map(subject => `
+                        ${['IQ', 'English', 'Math', 'GK', 'Bangla', 'Economics'].map(subject => `
                             <div class="subject">
                                 <h4>${subject}</h4>
                                 <p>Correct: ${currentStudent[`${subject} Right`] || 0}</p>
                                 <p>Wrong: ${currentStudent[`${subject} Wrong`] || 0}</p>
-                                <p><em>${currentStudent[subject === 'Analytical' ? 'Comment' : 
+                                <p><em>${currentStudent[subject === 'IQ' ? 'Comment' : 
                                                    subject === 'English' ? 'Comment.1' :
                                                    subject === 'Math' ? 'Comment.2' :
                                                    subject === 'GK' ? 'Comment.3' :
-                                                   subject === 'Statistics' ? 'Comment.4' : 'Comment.5'] || 'No comment'}</em></p>
+                                                   subject === 'Bangla' ? 'Comment.4' : 'Comment.5'] || 'No comment'}</em></p>
                             </div>
                         `).join('')}
                         <div style="text-align: center; margin-top: 30px; color: #666;">
