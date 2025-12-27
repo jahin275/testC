@@ -440,7 +440,7 @@
             align-items: center;
         }
 
-        .back-button, .download-button {
+        .back-button, .download-button, .solution-button {
             background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
             color: white;
             padding: 14px 30px;
@@ -459,9 +459,25 @@
             gap: 10px;
         }
 
-        .back-button:hover, .download-button:hover {
+        .solution-button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        .solution-button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+        }
+
+        .back-button:hover, .download-button:hover, .solution-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(255, 126, 95, 0.4);
+        }
+
+        /* Leaderboard Solution Button */
+        .leaderboard-solution-button {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
         }
 
         /* Error Message */
@@ -551,9 +567,10 @@
             .action-buttons {
                 flex-direction: row;
                 justify-content: center;
+                flex-wrap: wrap;
             }
             
-            .back-button, .download-button {
+            .back-button, .download-button, .solution-button {
                 width: auto;
                 min-width: 200px;
             }
@@ -566,6 +583,10 @@
             
             .subject-card {
                 padding: 25px;
+            }
+            
+            .action-buttons {
+                justify-content: center;
             }
         }
     </style>
@@ -631,6 +652,16 @@
                         <tbody id="leaderboardBody"></tbody>
                     </table>
                 </div>
+                
+                <!-- View Solution Button under Leaderboard -->
+                <div class="leaderboard-solution-button">
+                    <button onclick="viewSolution()" class="solution-button">
+                        <i class="fas fa-file-alt"></i> View Mock Test Solution PDF
+                    </button>
+                    <p style="margin-top: 10px; color: #666; font-size: 0.9rem;">
+                        <i class="fas fa-info-circle"></i> Download the complete solution with explanations
+                    </p>
+                </div>
             </div>
 
             <!-- Footer -->
@@ -646,6 +677,7 @@
         let currentStudent = null;
         const CACHE_KEY = 'JU_IBAMock_Results_Cache';
         const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        const SOLUTION_URL = 'https://drive.google.com/file/d/1Mki7NrApPAI5947EwHKPrd1ogGUeVZ9r/view?usp=sharing';
 
         // Google Apps Script Web App URL
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRkefn_0bp6qoIjPCalbbc-sYeaYd19Tmg0ViY0tvmbjH-cWMZ3GcBbC4mxskLqg8XvQ/exec';
@@ -891,6 +923,13 @@
                     <button onclick="downloadResult()" class="download-button">
                         <i class="fas fa-download"></i> Download Result
                     </button>
+                    <button onclick="viewSolution()" class="solution-button">
+                        <i class="fas fa-file-alt"></i> View Mock Test Solution
+                    </button>
+                </div>
+                
+                <div style="margin-top: 20px; text-align: center; color: #666; font-size: 0.9rem;">
+                    <i class="fas fa-lightbulb"></i> Need to understand your mistakes? View the complete solution with explanations.
                 </div>
             `;
 
@@ -952,6 +991,10 @@
             document.getElementById('leaderboardDisplay').scrollIntoView({ behavior: 'smooth' });
         }
 
+        function viewSolution() {
+            window.open(SOLUTION_URL, '_blank');
+        }
+
         function downloadResult() {
             if (!currentStudent) {
                 alert('No result to download. Please search for your result first.');
@@ -972,6 +1015,7 @@
                             .subject { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
                             .logo { text-align: center; margin-bottom: 20px; }
                             .logo img { max-width: 100px; }
+                            .solution-link { background: #4CAF50; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin: 15px 0; }
                             @media print { body { -webkit-print-color-adjust: exact; } }
                         </style>
                     </head>
@@ -1003,6 +1047,14 @@
                                                    subject === 'Bangla' ? 'Comment.4' : 'Comment.5'] || 'No comment'}</em></p>
                             </div>
                         `).join('')}
+                        <hr>
+                        <div style="text-align: center; margin-top: 30px;">
+                            <h4>Mock Test Solution</h4>
+                            <p>Download the complete solution with explanations:</p>
+                            <a href="${SOLUTION_URL}" target="_blank" class="solution-link">
+                                <i class="fas fa-download"></i> Download Solution PDF
+                            </a>
+                        </div>
                         <div style="text-align: center; margin-top: 30px; color: #666;">
                             <p>© 2024 Plan C Academy | Generated from JU IBA Mock Test Portal</p>
                         </div>
@@ -1018,12 +1070,6 @@
                 searchResult();
             }
         });
-
-        // Email validation
-        function validateEmail(email) {
-            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return re.test(email);
-        }
 
         // Load data on page load
         window.onload = function() {
