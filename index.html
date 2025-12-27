@@ -838,7 +838,6 @@
                 'Math': 'fas fa-calculator',
                 'GK': 'fas fa-globe-asia',
                 'Bangla': 'fas fa-chart-bar',
-                'Economics': 'fas fa-coins'
             };
             return icons[subject] || 'fas fa-book';
         }
@@ -888,7 +887,7 @@
                         </div>
                         <hr>
                         <h3>Subject-wise Performance</h3>
-                        ${['IQ', 'English', 'Math', 'GK', 'Bangla', 'Economics'].map(subject => `
+                        ${['IQ', 'English', 'Math', 'GK', 'Bangla'].map(subject => `
                             <div class="subject">
                                 <h4>${subject}</h4>
                                 <p>Correct: ${currentStudent[`${subject} Right`] || 0}</p>
