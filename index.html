@@ -1,1084 +1,207 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>JU IBA Mock Test - 01 Results</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <title>JU IBA Result Checker</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
         body {
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            min-height: 100vh;
-            padding: 15px;
-            color: #333;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .loading {
-            text-align: center;
-            color: white;
-            font-size: 1.5rem;
-            padding: 50px 20px;
-        }
-
-        /* Branding Header */
-        .brand-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .logo {
-            height: 60px;
-            width: 60px;
-            background: white;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-        }
-
-        .logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .brand-text {
-            color: white;
-        }
-
-        .brand-name {
-            font-size: 1.8rem;
-            font-weight: bold;
-            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
-        }
-
-        .brand-tagline {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-
-        /* Header Styles */
-        .header {
-            text-align: center;
-            margin-bottom: 25px;
-            padding: 0 10px;
-        }
-
-        .main-title {
-            color: white;
-            font-size: 2.2rem;
-            margin-bottom: 8px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .subtitle {
-            color: #fff5e6;
-            font-size: 1.1rem;
-            margin-bottom: 8px;
-            padding: 0 10px;
-        }
-
-        .test-id {
-            color: #ffd700;
-            font-size: 1rem;
-            font-weight: bold;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            display: inline-block;
-        }
-
-        /* Search Section */
-        .search-section {
-            background: white;
-            padding: 25px 20px;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-            margin-bottom: 25px;
-            text-align: center;
-        }
-
-        .search-title {
-            color: #ff7e5f;
-            margin-bottom: 15px;
-            font-size: 1.5rem;
-        }
-
-        .search-box {
-            display: flex;
-            flex-direction: column;
+            font-family: Arial, sans-serif;
             max-width: 600px;
             margin: 0 auto;
-            gap: 12px;
-        }
-
-        .search-input {
-            padding: 16px 20px;
-            border: 3px solid #ff7e5f;
-            border-radius: 50px;
-            outline: none;
-            font-size: 1rem;
-            background: #f9f9f9;
-            width: 100%;
-            box-shadow: 0 3px 10px rgba(255, 126, 95, 0.2);
-        }
-
-        .search-button {
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            color: white;
-            border: none;
-            padding: 16px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 1.1rem;
-            transition: all 0.3s;
-            width: 100%;
-            box-shadow: 0 5px 15px rgba(255, 126, 95, 0.3);
-        }
-
-        .search-button:hover {
-            background: linear-gradient(135deg, #feb47b 0%, #ff7e5f 100%);
-            transform: translateY(-2px);
-        }
-
-        .highlight-note {
-            color: #d32f2f;
-            background: #ffebee;
-            padding: 12px;
-            border-radius: 10px;
-            margin-top: 15px;
-            font-weight: bold;
-            display: inline-block;
-            font-size: 0.95rem;
-        }
-
-        /* Result Display */
-        .result-container {
-            background: white;
-            padding: 25px 20px;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-            margin-bottom: 25px;
-            display: none;
-            overflow: hidden;
-        }
-
-        .result-header {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 20px;
-            border-bottom: 3px solid #f0f0f0;
-            text-align: center;
-        }
-
-        .result-avatar {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-            color: white;
-            font-size: 2.8rem;
-            font-weight: bold;
-            box-shadow: 0 8px 20px rgba(255, 126, 95, 0.4);
-        }
-
-        .result-info {
-            width: 100%;
-            margin-bottom: 15px;
-        }
-
-        .result-title {
-            color: #ff7e5f;
-            font-size: 1.8rem;
-            margin-bottom: 8px;
-            word-break: break-word;
-        }
-
-        .result-subtitle {
-            color: #666;
-            font-size: 1rem;
-            margin-bottom: 15px;
-            word-break: break-all;
-        }
-
-        .result-rank {
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            color: white;
-            padding: 12px 30px;
-            border-radius: 30px;
-            font-weight: bold;
-            font-size: 1.3rem;
-            box-shadow: 0 5px 15px rgba(255, 126, 95, 0.4);
-            display: inline-block;
-        }
-
-        /* Score Overview */
-        .score-overview {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .score-card {
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            color: white;
-            padding: 20px 15px;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(255, 126, 95, 0.3);
-        }
-
-        .score-label {
-            font-size: 0.85rem;
-            opacity: 0.9;
-            margin-bottom: 6px;
-        }
-
-        .score-value {
-            font-size: 1.8rem;
-            font-weight: bold;
-        }
-
-        /* Subject Details */
-        .subjects-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .subject-card {
-            background: #f9f9f9;
             padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border-left: 5px solid #ff7e5f;
-        }
-
-        .subject-title {
-            color: #ff7e5f;
-            font-size: 1.3rem;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .subject-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-        }
-
-        .stat-item {
             text-align: center;
+            background: #f5f5f5;
         }
-
-        .stat-label {
-            font-size: 0.8rem;
-            color: #666;
-            margin-bottom: 4px;
-        }
-
-        .stat-value {
-            font-size: 1.3rem;
-            font-weight: bold;
-        }
-
-        .stat-value.correct {
-            color: #4CAF50;
-        }
-
-        .stat-value.wrong {
-            color: #F44336;
-        }
-
-        .comment-box {
-            background: #fff3e0;
-            padding: 12px;
-            border-radius: 8px;
-            border-left: 4px solid #ff9800;
-            font-style: italic;
-            color: #e65100;
-            margin-top: 10px;
-            font-size: 0.95rem;
-            line-height: 1.4;
-        }
-
-        /* Leaderboard */
-        .leaderboard-container {
-            background: white;
-            padding: 25px 20px;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-            margin-bottom: 25px;
-        }
-
-        .leaderboard-title {
-            color: #ff7e5f;
-            text-align: center;
+        .logo {
+            width: 150px;
             margin-bottom: 20px;
-            font-size: 1.8rem;
-            position: relative;
-            padding-bottom: 15px;
         }
-
-        .leaderboard-title:after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            border-radius: 2px;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .leaderboard-table {
-            width: 100%;
-            min-width: 600px;
-            border-collapse: collapse;
-        }
-
-        .leaderboard-table th {
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            color: white;
-            padding: 14px 12px;
-            text-align: left;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-
-        .leaderboard-table td {
-            padding: 12px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
-        }
-
-        .leaderboard-table tr:nth-child(even) {
-            background: #f9f9f9;
-        }
-
-        .leaderboard-table tr:hover {
-            background: #fff3e0;
-        }
-
-        .rank-badge {
-            display: inline-block;
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            color: white;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 32px;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-
-        .rank-1 {
-            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-        }
-
-        .rank-2 {
-            background: linear-gradient(135deg, #C0C0C0 0%, #A9A9A9 100%);
-        }
-
-        .rank-3 {
-            background: linear-gradient(135deg, #CD7F32 0%, #A0522D 100%);
-        }
-
-        .action-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 20px;
-            align-items: center;
-        }
-
-        .back-button, .download-button, .solution-button {
-            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
-            color: white;
-            padding: 14px 30px;
-            border-radius: 25px;
-            text-decoration: none;
-            font-weight: bold;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s;
-            width: 100%;
-            max-width: 300px;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .solution-button {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-        }
-
-        .solution-button:hover {
-            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
-        }
-
-        .back-button:hover, .download-button:hover, .solution-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(255, 126, 95, 0.4);
-        }
-
-        /* Leaderboard Solution Button */
-        .leaderboard-solution-button {
-            text-align: center;
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 2px solid #f0f0f0;
-        }
-
-        /* Error Message */
-        .error-message {
-            background: #ffebee;
-            color: #c62828;
-            padding: 15px;
+        .search-box {
+            background: white;
+            padding: 30px;
             border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin: 20px 0;
-            text-align: center;
-            font-size: 0.95rem;
         }
-
-        /* Footer */
-        .footer {
-            text-align: center;
+        input {
+            padding: 12px;
+            width: 200px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 12px 25px;
+            background: #1565c0;
             color: white;
-            padding: 20px;
-            font-size: 0.9rem;
-            opacity: 0.8;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0d47a1;
+        }
+        .result {
             margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
         }
-
-        /* Tablet and Desktop Styles */
-        @media (min-width: 768px) {
-            body {
-                padding: 20px;
-            }
-            
-            .brand-header {
-                justify-content: flex-start;
-                margin-bottom: 30px;
-            }
-            
-            .main-title {
-                font-size: 2.8rem;
-            }
-            
-            .subtitle {
-                font-size: 1.3rem;
-            }
-            
-            .search-box {
-                flex-direction: row;
-            }
-            
-            .search-input {
-                flex: 1;
-            }
-            
-            .search-button {
-                width: auto;
-            }
-            
-            .result-header {
-                flex-direction: row;
-                text-align: left;
-            }
-            
-            .result-avatar {
-                margin: 0 25px 0 0;
-            }
-            
-            .result-info {
-                flex: 1;
-                margin-bottom: 0;
-            }
-            
-            .score-overview {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 20px;
-            }
-            
-            .subjects-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
-            }
-            
-            .score-card {
-                padding: 25px 20px;
-            }
-            
-            .score-value {
-                font-size: 2.2rem;
-            }
-            
-            .action-buttons {
-                flex-direction: row;
-                justify-content: center;
-                flex-wrap: wrap;
-            }
-            
-            .back-button, .download-button, .solution-button {
-                width: auto;
-                min-width: 200px;
-            }
+        .found {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
         }
-
-        @media (min-width: 1024px) {
-            .subjects-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            
-            .subject-card {
-                padding: 25px;
-            }
-            
-            .action-buttons {
-                justify-content: center;
-            }
+        .not-found {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        .top-50 {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .loading {
+            display: none;
+            color: #666;
+            margin: 10px;
+        }
+        .official-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #1565c0;
+            text-decoration: none;
+        }
+        .official-link:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="loading" id="loadingMessage" style="display: none;">
-            <i class="fas fa-spinner fa-spin"></i> Loading results data...
+    <div>
+        <!-- Replace with your actual logo images -->
+        <img src="JU.png" alt="JU Logo" class="logo">
+        <img src="C.png" alt="Plan C Logo" class="logo">
+        
+        <h1>JU IBA Result Checker</h1>
+        <p>Enter your 7-digit roll number to check your merit position</p>
+        
+        <div class="search-box">
+            <input type="text" id="rollNumber" placeholder="Enter 7-digit Roll No" maxlength="7">
+            <button onclick="checkResult()">Check Result</button>
+            
+            <div class="loading" id="loading">Searching...</div>
+            
+            <div id="result" class="result"></div>
         </div>
-
-        <div id="mainContent">
-            <!-- Branding Header -->
-            <div class="brand-header">
-                <div class="logo-container">
-                    <div class="logo">
-                        <img src="https://via.placeholder.com/60/ff7e5f/ffffff?text=C" alt="Plan C Logo" id="logoImage">
-                    </div>
-                    <div class="brand-text">
-                        <div class="brand-name">Plan C Academy</div>
-                        <div class="brand-tagline">JU IBA Test Preparation Experts</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Header -->
-            <div class="header">
-                <h1 class="main-title">JU IBA Mock Test Results</h1>
-                <p class="subtitle">Check your detailed performance and ranking</p>
-                <p class="test-id">Test ID: JU IBA Mock - 01</p>
-            </div>
-
-            <!-- Search Section -->
-            <div class="search-section">
-                <h2 class="search-title"><i class="fas fa-search"></i> Search Your Result</h2>
-                <div class="search-box">
-                    <input type="email" id="emailInput" class="search-input" placeholder="Enter your registered email address...">
-                    <button onclick="searchResult()" class="search-button">
-                        <i class="fas fa-search"></i> Search Result
-                    </button>
-                </div>
-                <div class="highlight-note">
-                    <i class="fas fa-lock"></i> Your result is private and only visible to you
-                </div>
-            </div>
-
-            <!-- Result Display -->
-            <div id="resultDisplay" class="result-container"></div>
-
-            <!-- Leaderboard -->
-            <div id="leaderboardDisplay" class="leaderboard-container">
-                <h2 class="leaderboard-title"><i class="fas fa-trophy"></i> Top Performers</h2>
-                <div class="table-container">
-                    <table class="leaderboard-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 10%;">Rank</th>
-                                <th style="width: 35%;">Name</th>
-                                <th style="width: 15%;">Net Score</th>
-                                <th style="width: 15%;">Correct</th>
-                                <th style="width: 15%;">Attempted</th>
-                            </tr>
-                        </thead>
-                        <tbody id="leaderboardBody"></tbody>
-                    </table>
-                </div>
-                
-                <!-- View Solution Button under Leaderboard -->
-                <div class="leaderboard-solution-button">
-                    <button onclick="viewSolution()" class="solution-button">
-                        <i class="fas fa-file-alt"></i> View Mock Test Solution PDF
-                    </button>
-                    <p style="margin-top: 10px; color: #666; font-size: 0.9rem;">
-                        <i class="fas fa-info-circle"></i> Download the complete solution with explanations
-                    </p>
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="footer">
-                <p>© 2024 Plan C Academy. All rights reserved.</p>
-                <p>JU IBA Mock Test Results Portal v1.0</p>
-            </div>
-        </div>
+        
+        <p>Official website: <a href="https://ju-admission.org/result" target="_blank">https://ju-admission.org/result</a></p>
     </div>
 
     <script>
-        let studentsData = [];
-        let currentStudent = null;
-        const CACHE_KEY = 'JU_IBAMock_Results_Cache';
-        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-        const SOLUTION_URL = 'https://drive.google.com/file/d/1Mki7NrApPAI5947EwHKPrd1ogGUeVZ9r/view?usp=sharing';
-
-        // Google Apps Script Web App URL
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRkefn_0bp6qoIjPCalbbc-sYeaYd19Tmg0ViY0tvmbjH-cWMZ3GcBbC4mxskLqg8XvQ/exec';
-
-        // Update logo source
-        document.getElementById('logoImage').src = 'C.png';
-
-        // Load cached data immediately
-        function loadCachedData() {
-            try {
-                const cached = localStorage.getItem(CACHE_KEY);
-                if (!cached) return null;
+        // Your Apps Script URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbznwXoYC0tlD1RuhoodToroHpKyeXGWodlRdrMBXSFBxRwUh5BHz6R-KV_YDPRwF174/exec';
+        
+        function checkResult() {
+            const rollNumber = document.getElementById('rollNumber').value.trim();
+            
+            if (!rollNumber || rollNumber.length !== 7 || isNaN(rollNumber)) {
+                alert('Please enter a valid 7-digit roll number');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            
+            // Send request to your Apps Script
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({rollNumber: rollNumber})
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                showResult(data, rollNumber);
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').innerHTML = `
+                    <div class="not-found">
+                        <h3>Error</h3>
+                        <p>Unable to connect. Please try again.</p>
+                        <a href="https://ju-admission.org/result" target="_blank" class="official-link">Check Official Site →</a>
+                    </div>
+                `;
+                document.getElementById('result').style.display = 'block';
+            });
+        }
+        
+        function showResult(data, rollNumber) {
+            const resultDiv = document.getElementById('result');
+            
+            if (data.status === 'found') {
+                const position = data.position;
+                const gender = data.gender;
+                const genderText = gender === 'F' ? 'Female' : gender === 'M' ? 'Male' : gender;
                 
-                const { data, timestamp } = JSON.parse(cached);
+                let html = `<div class="found">
+                    <h3>🎉 Congratulations!</h3>
+                    <p><strong>Roll Number:</strong> ${rollNumber}</p>
+                    <p><strong>Position:</strong> ${position}</p>
+                    <p><strong>Gender:</strong> ${genderText}</p>`;
                 
-                // Check if cache is still valid
-                if (Date.now() - timestamp < CACHE_DURATION) {
-                    console.log('Loading data from cache');
-                    return data;
+                if (position <= 50) {
+                    html += `<div class="top-50">
+                        <strong>🎖️ Congratulations on getting into JU IBA!</strong><br>
+                        You are in the top 50!
+                    </div>`;
                 } else {
-                    console.log('Cache expired');
-                    localStorage.removeItem(CACHE_KEY);
-                    return null;
-                }
-            } catch (error) {
-                console.error('Error loading cached data:', error);
-                return null;
-            }
-        }
-
-        // Save data to cache
-        function saveToCache(data) {
-            try {
-                const cacheData = {
-                    data: data,
-                    timestamp: Date.now()
-                };
-                localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-                console.log('Data saved to cache');
-            } catch (error) {
-                console.error('Error saving to cache:', error);
-            }
-        }
-
-        async function loadData() {
-            // Try to load from cache first
-            const cachedData = loadCachedData();
-            
-            if (cachedData) {
-                studentsData = cachedData;
-                document.getElementById('mainContent').style.display = 'block';
-                populateLeaderboard();
-                // Refresh data in background
-                refreshDataInBackground();
-                return;
-            }
-            
-            // If no cache, show loading and fetch fresh data
-            document.getElementById('loadingMessage').style.display = 'block';
-            document.getElementById('mainContent').style.display = 'none';
-            
-            try {
-                console.log('Fetching fresh data from:', APPS_SCRIPT_URL);
-                
-                const response = await fetch(APPS_SCRIPT_URL);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    html += `<p>Congratulations on getting in the merit list!</p>`;
                 }
                 
-                const data = await response.json();
-                console.log('Fresh data received:', data);
+                html += `<a href="https://ju-admission.org/result" target="_blank" class="official-link">Verify on Official Website →</a>
+                    </div>`;
                 
-                if (data.error) {
-                    throw new Error(data.error);
-                }
+                resultDiv.innerHTML = html;
                 
-                if (!Array.isArray(data) || data.length === 0) {
-                    throw new Error('No data found in spreadsheet');
-                }
-                
-                studentsData = data;
-                
-                // Save to cache
-                saveToCache(data);
-                
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                populateLeaderboard();
-            } catch (error) {
-                console.error('Error loading data:', error);
-                
-                // If we have cached data (even if expired), use it as fallback
-                const expiredCache = localStorage.getItem(CACHE_KEY);
-                if (expiredCache) {
-                    try {
-                        const { data } = JSON.parse(expiredCache);
-                        studentsData = data;
-                        document.getElementById('loadingMessage').style.display = 'none';
-                        document.getElementById('mainContent').style.display = 'block';
-                        populateLeaderboard();
-                        
-                        document.getElementById('leaderboardDisplay').insertAdjacentHTML('beforebegin', `
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                Note: Showing cached data. Could not fetch fresh data. ${error.message}
-                            </div>
-                        `);
-                        return;
-                    } catch (e) {
-                        // Cache is corrupted
-                    }
-                }
-                
-                document.getElementById('loadingMessage').innerHTML = `
-                    <div class="error-message">
-                        <i class="fas fa-exclamation-triangle"></i><br>
-                        Error loading data: ${error.message}<br>
-                        <small>Please check your internet connection or contact admin.</small><br>
-                        <button onclick="location.reload()" class="back-button" style="margin-top: 15px;">
-                            <i class="fas fa-sync"></i> Retry
-                        </button>
+            } else if (data.status === 'not_found') {
+                resultDiv.innerHTML = `
+                    <div class="not-found">
+                        <h3>Better luck on the next one</h3>
+                        <p>Roll number <strong>${rollNumber}</strong> was not found in the merit list.</p>
+                        <a href="https://ju-admission.org/result" target="_blank" class="official-link">Check Official Result →</a>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="not-found">
+                        <h3>Error</h3>
+                        <p>${data.message || 'Please try again'}</p>
+                        <a href="https://ju-admission.org/result" target="_blank" class="official-link">Check Official Site →</a>
                     </div>
                 `;
             }
-        }
-
-        // Refresh data in background without blocking UI
-        async function refreshDataInBackground() {
-            try {
-                console.log('Refreshing data in background');
-                const response = await fetch(APPS_SCRIPT_URL);
-                
-                if (!response.ok) {
-                    console.log('Background refresh failed:', response.status);
-                    return;
-                }
-                
-                const data = await response.json();
-                
-                if (!data.error && Array.isArray(data) && data.length > 0) {
-                    studentsData = data;
-                    saveToCache(data);
-                    populateLeaderboard();
-                    console.log('Background data refresh successful');
-                }
-            } catch (error) {
-                console.log('Background refresh error:', error);
-            }
-        }
-
-        function populateLeaderboard() {
-            const tbody = document.getElementById('leaderboardBody');
-            tbody.innerHTML = '';
             
-            // Sort by Rank
-            const sortedData = [...studentsData].sort((a, b) => {
-                return parseInt(a.Rank) - parseInt(b.Rank);
-            });
-            
-            sortedData.forEach(student => {
-                if (!student.Rank || !student.Name) return;
-                
-                const row = document.createElement('tr');
-                let rankClass = '';
-                const rank = parseInt(student.Rank);
-                if (rank === 1) rankClass = 'rank-1';
-                else if (rank === 2) rankClass = 'rank-2';
-                else if (rank === 3) rankClass = 'rank-3';
-                
-                row.innerHTML = `
-                    <td><span class="rank-badge ${rankClass}">${student.Rank}</span></td>
-                    <td>${student.Name}</td>
-                    <td><strong>${student['Net Score'] || 0}</strong></td>
-                    <td>${student['Total Correct'] || 0}</td>
-                    <td>${student['Total Attempted'] || 0}</td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function searchResult() {
-            const email = document.getElementById('emailInput').value.trim().toLowerCase();
-            const student = studentsData.find(s => 
-                s.Email && s.Email.toLowerCase() === email
-            );
-            
-            if (!student) {
-                alert('No result found for this email. Please check and try again.');
-                return;
-            }
-
-            currentStudent = student;
-            displayStudentResult(student);
-        }
-
-        function displayStudentResult(student) {
-            const resultDiv = document.getElementById('resultDisplay');
-            const avatar = student.Name ? student.Name.charAt(0).toUpperCase() : 'U';
-            
-            resultDiv.innerHTML = `
-                <div class="result-header">
-                    <div class="result-avatar">${avatar}</div>
-                    <div class="result-info">
-                        <h2 class="result-title">${student.Name || 'Unknown Student'}</h2>
-                        <p class="result-subtitle">${student.Email || 'No email provided'}</p>
-                        <p style="color: #666; margin-top: 5px;">Test ID: ${student['Test ID'] || 'N/A'}</p>
-                    </div>
-                    <div class="result-rank">Rank: ${student.Rank || 'N/A'}</div>
-                </div>
-
-                <div class="score-overview">
-                    <div class="score-card">
-                        <div class="score-label">Net Score</div>
-                        <div class="score-value">${student['Net Score'] || 0}</div>
-                    </div>
-                    <div class="score-card">
-                        <div class="score-label">Total Correct</div>
-                        <div class="score-value">${student['Total Correct'] || 0}</div>
-                    </div>
-                    <div class="score-card">
-                        <div class="score-label">Total Incorrect</div>
-                        <div class="score-value">${student['Total Incorrect'] || 0}</div>
-                    </div>
-                    <div class="score-card">
-                        <div class="score-label">Attempted</div>
-                        <div class="score-value">${student['Total Attempted'] || 0}</div>
-                    </div>
-                </div>
-
-                <div class="subjects-grid">
-                    ${createSubjectCard('IQ', student['IQ Right'], student['IQ Wrong'], student['Comment'])}
-                    ${createSubjectCard('English', student['English Right'], student['English Wrong'], student['Comment.1'])}
-                    ${createSubjectCard('Math', student['Math Right'], student['Math Wrong'], student['Comment.2'])}
-                    ${createSubjectCard('GK', student['GK Right'], student['GK Wrong'], student['Comment.3'])}
-                    ${createSubjectCard('Bangla', student['Bangla Right'], student['Bangla Wrong'], student['Comment.4'])}
-                </div>
-
-                <div class="action-buttons">
-                    <button onclick="showLeaderboard()" class="back-button">
-                        <i class="fas fa-arrow-left"></i> Back to Leaderboard
-                    </button>
-                    <button onclick="downloadResult()" class="download-button">
-                        <i class="fas fa-download"></i> Download Result
-                    </button>
-                    <button onclick="viewSolution()" class="solution-button">
-                        <i class="fas fa-file-alt"></i> View Mock Test Solution
-                    </button>
-                </div>
-                
-                <div style="margin-top: 20px; text-align: center; color: #666; font-size: 0.9rem;">
-                    <i class="fas fa-lightbulb"></i> Need to understand your mistakes? View the complete solution with explanations.
-                </div>
-            `;
-
             resultDiv.style.display = 'block';
-            document.getElementById('leaderboardDisplay').style.display = 'none';
-            resultDiv.scrollIntoView({ behavior: 'smooth' });
         }
-
-        function createSubjectCard(subject, right, wrong, comment) {
-            if (!right && right !== 0 && !wrong && wrong !== 0) return '';
-            
-            const total = (parseInt(right) || 0) + (parseInt(wrong) || 0);
-            const icon = getSubjectIcon(subject);
-            
-            return `
-                <div class="subject-card">
-                    <div class="subject-title">
-                        <i class="${icon}"></i>
-                        ${subject} Ability
-                    </div>
-                    <div class="subject-stats">
-                        <div class="stat-item">
-                            <div class="stat-label">Correct</div>
-                            <div class="stat-value correct">${right || 0}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Wrong</div>
-                            <div class="stat-value wrong">${wrong || 0}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Total</div>
-                            <div class="stat-value">${total}</div>
-                        </div>
-                    </div>
-                    ${comment ? `
-                        <div class="comment-box">
-                            <i class="fas fa-comment-dots"></i> 
-                            <strong>Feedback:</strong> ${comment}
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        function getSubjectIcon(subject) {
-            const icons = {
-                'IQ': 'fas fa-brain',
-                'English': 'fas fa-language',
-                'Math': 'fas fa-calculator',
-                'GK': 'fas fa-globe-asia',
-                'Bangla': 'fas fa-chart-bar',
-            };
-            return icons[subject] || 'fas fa-book';
-        }
-
-        function showLeaderboard() {
-            document.getElementById('resultDisplay').style.display = 'none';
-            document.getElementById('leaderboardDisplay').style.display = 'block';
-            document.getElementById('leaderboardDisplay').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function viewSolution() {
-            window.open(SOLUTION_URL, '_blank');
-        }
-
-        function downloadResult() {
-            if (!currentStudent) {
-                alert('No result to download. Please search for your result first.');
-                return;
-            }
-
-            // Create a printable version
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Result - ${currentStudent.Name}</title>
-                        <style>
-                            body { font-family: Arial, sans-serif; padding: 30px; }
-                            .header { text-align: center; margin-bottom: 30px; }
-                            .header h1 { color: #ff7e5f; }
-                            .info { margin: 20px 0; }
-                            .subject { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
-                            .logo { text-align: center; margin-bottom: 20px; }
-                            .logo img { max-width: 100px; }
-                            .solution-link { background: #4CAF50; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin: 15px 0; }
-                            @media print { body { -webkit-print-color-adjust: exact; } }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="logo">
-                            <img src="C.png" alt="Plan C Logo">
-                        </div>
-                        <div class="header">
-                            <h1>JU IBA Mock Test Result</h1>
-                            <h3>${currentStudent.Name}</h3>
-                            <p>Email: ${currentStudent.Email} | Rank: ${currentStudent.Rank}</p>
-                        </div>
-                        <div class="info">
-                            <p><strong>Net Score:</strong> ${currentStudent['Net Score']}</p>
-                            <p><strong>Total Correct:</strong> ${currentStudent['Total Correct']}</p>
-                            <p><strong>Total Attempted:</strong> ${currentStudent['Total Attempted']}</p>
-                        </div>
-                        <hr>
-                        <h3>Subject-wise Performance</h3>
-                        ${['IQ', 'English', 'Math', 'GK', 'Bangla'].map(subject => `
-                            <div class="subject">
-                                <h4>${subject}</h4>
-                                <p>Correct: ${currentStudent[`${subject} Right`] || 0}</p>
-                                <p>Wrong: ${currentStudent[`${subject} Wrong`] || 0}</p>
-                                <p><em>${currentStudent[subject === 'IQ' ? 'Comment' : 
-                                                   subject === 'English' ? 'Comment.1' :
-                                                   subject === 'Math' ? 'Comment.2' :
-                                                   subject === 'GK' ? 'Comment.3' :
-                                                   subject === 'Bangla' ? 'Comment.4' : 'Comment.5'] || 'No comment'}</em></p>
-                            </div>
-                        `).join('')}
-                        <hr>
-                        <div style="text-align: center; margin-top: 30px;">
-                            <h4>Mock Test Solution</h4>
-                            <p>Download the complete solution with explanations:</p>
-                            <a href="${SOLUTION_URL}" target="_blank" class="solution-link">
-                                <i class="fas fa-download"></i> Download Solution PDF
-                            </a>
-                        </div>
-                        <div style="text-align: center; margin-top: 30px; color: #666;">
-                            <p>© 2024 Plan C Academy | Generated from JU IBA Mock Test Portal</p>
-                        </div>
-                    </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-        }
-
-        document.getElementById('emailInput').addEventListener('keypress', function(e) {
+        
+        // Allow pressing Enter to search
+        document.getElementById('rollNumber').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                searchResult();
+                checkResult();
             }
         });
-
-        // Load data on page load
-        window.onload = function() {
-            // Show main content immediately
-            document.getElementById('mainContent').style.display = 'block';
-            
-            // Load data (will use cache if available)
-            loadData();
-        };
     </script>
 </body>
 </html>
