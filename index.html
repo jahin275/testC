@@ -1,470 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JU IBA Merit Position Checker</title>
+    <title>JU IBA Result Checker</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
         body {
-            background: linear-gradient(135deg, #1a2980, #26d0ce);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
+            font-family: Arial, sans-serif;
             max-width: 500px;
-            width: 100%;
-        }
-        
-        .header {
-            background: linear-gradient(to right, #0d47a1, #1565c0);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 15px;
-        }
-        
-        .logo {
-            height: 70px;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        }
-        
-        .title {
-            font-size: 2rem;
-            margin-bottom: 5px;
-        }
-        
-        .subtitle {
-            opacity: 0.9;
-            font-weight: 300;
-        }
-        
-        .content {
-            padding: 30px;
-        }
-        
-        .input-group {
-            margin-bottom: 25px;
-        }
-        
-        input {
-            width: 100%;
-            padding: 18px 20px;
-            font-size: 1.1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            transition: all 0.3s;
-        }
-        
-        input:focus {
-            border-color: #1565c0;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.2);
-        }
-        
-        button {
-            width: 100%;
-            padding: 18px;
-            background: linear-gradient(to right, #0d47a1, #1565c0);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            letter-spacing: 1px;
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(21, 101, 192, 0.4);
-        }
-        
-        button:disabled {
-            background: #cccccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #1565c0;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .result {
-            margin-top: 25px;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.5s;
-            display: none;
-        }
-        
-        .result.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        .result-card {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 25px;
-            text-align: center;
-            border-left: 5px solid transparent;
-        }
-        
-        .success {
-            border-left-color: #4CAF50;
-        }
-        
-        .not-found {
-            border-left-color: #f44336;
-        }
-        
-        .result-icon {
-            font-size: 3.5rem;
-            margin-bottom: 15px;
-        }
-        
-        .success .result-icon {
-            color: #4CAF50;
-        }
-        
-        .not-found .result-icon {
-            color: #f44336;
-        }
-        
-        .result-title {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        .result-details {
-            font-size: 1.1rem;
-            margin-bottom: 10px;
-            color: #555;
-        }
-        
-        .position {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #0d47a1;
-            margin: 15px 0;
-        }
-        
-        .gender {
-            display: inline-block;
-            padding: 6px 15px;
-            border-radius: 50px;
-            font-weight: 600;
-            margin: 5px;
-        }
-        
-        .female {
-            background: #fce4ec;
-            color: #c2185b;
-        }
-        
-        .male {
-            background: #e3f2fd;
-            color: #1565c0;
-        }
-        
-        .top-50-badge {
-            background: #fff3cd;
-            color: #856404;
-            padding: 12px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #ffc107;
-        }
-        
-        .official-link {
-            display: inline-block;
-            margin-top: 15px;
-            padding: 12px 25px;
-            background: #ff9800;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .official-link:hover {
-            background: #f57c00;
-            transform: translateY(-2px);
-        }
-        
-        .footer {
-            text-align: center;
+            margin: 50px auto;
             padding: 20px;
-            color: #666;
-            font-size: 0.9rem;
-            border-top: 1px solid #eee;
         }
-        
-        .error {
-            color: #f44336;
-            text-align: center;
-            margin: 10px 0;
-            display: none;
+        input {
+            padding: 8px;
+            font-size: 16px;
+            width: 240px;
+        }
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+        }
+        .output {
+            margin-top: 20px;
+            font-size: 18px;
         }
     </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo-container">
-                <!-- Replace JU.png and C.png with your actual logo files -->
-                <img src="JU.png" alt="JU Logo" class="logo">
-                <img src="C.png" alt="Plan C Logo" class="logo">
-            </div>
-            <h1 class="title">JU IBA Result Checker</h1>
-            <p class="subtitle">Check your admission merit position</p>
-        </div>
-        
-        <div class="content">
-            <div class="input-group">
-                <input type="text" id="rollInput" placeholder="Enter your 7-digit Roll Number" maxlength="7">
-                <button id="searchBtn" onclick="checkResult()">
-                    <i class="fas fa-search"></i> Check Result
-                </button>
-                <div class="error" id="errorMsg"></div>
-            </div>
-            
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Searching database...</p>
-            </div>
-            
-            <div class="result" id="resultContainer">
-                <!-- Result will appear here -->
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>© 2023 Jahangirnagar University IBA Admission</p>
-            <p>Official Result: <a href="https://ju-admission.org/result" target="_blank">https://ju-admission.org/result</a></p>
-        </div>
-    </div>
 
-    <script>
-        // ⚠️ YOUR APPS SCRIPT URL ⚠️
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbznwXoYC0tlD1RuhoodToroHpKyeXGWodlRdrMBXSFBxRwUh5BHz6R-KV_YDPRwF174/exec';
-        
-        function checkResult() {
-            const rollInput = document.getElementById('rollInput');
-            const rollNumber = rollInput.value.trim();
-            const errorMsg = document.getElementById('errorMsg');
-            const loading = document.getElementById('loading');
-            const resultContainer = document.getElementById('resultContainer');
-            const searchBtn = document.getElementById('searchBtn');
-            
-            // Reset display
-            errorMsg.style.display = 'none';
-            resultContainer.style.display = 'none';
-            resultContainer.classList.remove('show');
-            
-            // Validate input
-            if (!rollNumber) {
-                showError('Please enter a roll number');
-                return;
-            }
-            
-            if (rollNumber.length !== 7 || isNaN(rollNumber)) {
-                showError('Please enter a valid 7-digit roll number');
-                return;
-            }
-            
-            // Show loading, disable button
-            loading.style.display = 'block';
-            searchBtn.disabled = true;
-            searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
-            
-            // Send request to Apps Script
-            fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    rollNumber: rollNumber
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
+<h2>JU IBA Result Checker</h2>
+
+<label for="roll">Enter 7-digit Roll:</label><br>
+<input type="text" id="roll" placeholder="e.g. 5120001" maxlength="7">
+<button onclick="checkResult()">Search</button>
+
+<div class="output" id="result"></div>
+
+<script>
+    // Replace this URL with your deployed Web App URL
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbznwXoYC0tlD1RuhoodToroHpKyeXGWodlRdrMBXSFBxRwUh5BHz6R-KV_YDPRwF174/exec";
+
+    function checkResult() {
+        const roll = document.getElementById("roll").value.trim();
+
+        if (roll.length !== 7 || isNaN(roll)) {
+            document.getElementById("result").innerHTML = "Please enter a valid 7-digit roll number.";
+            return;
+        }
+
+        // Build the GET request URL
+        const url = `${WEB_APP_URL}?roll=${encodeURIComponent(roll)}`;
+
+        fetch(url)
+            .then(response => response.json())
             .then(data => {
-                // Hide loading, enable button
-                loading.style.display = 'none';
-                searchBtn.disabled = false;
-                searchBtn.innerHTML = '<i class="fas fa-search"></i> Check Result';
-                
-                // Display result
-                displayResult(data, rollNumber);
+                if (data.success) {
+                    document.getElementById("result").innerHTML =
+                        `Roll: ${data.roll}<br>` +
+                        `Position: ${data.position}<br>` +
+                        `Gender: ${data.gender}`;
+                } else {
+                    document.getElementById("result").innerHTML =
+                        `Result not found.<br>` +
+                        `<a href="https://ju-admission.org/result" target="_blank">Check official site</a>`;
+                }
             })
             .catch(error => {
-                // Hide loading, enable button
-                loading.style.display = 'none';
-                searchBtn.disabled = false;
-                searchBtn.innerHTML = '<i class="fas fa-search"></i> Check Result';
-                
-                showError(`Connection failed: ${error.message}. Please try again.`);
-                console.error('Fetch error:', error);
+                document.getElementById("result").innerHTML =
+                    "Error: Could not get result. Please try again later.";
+                console.error(error);
             });
-        }
-        
-        function displayResult(data, rollNumber) {
-            const resultContainer = document.getElementById('resultContainer');
-            
-            let html = '';
-            
-            if (data.status === 'found') {
-                const position = data.position;
-                const gender = data.gender;
-                const genderText = gender === 'F' ? 'Female' : gender === 'M' ? 'Male' : 'Not specified';
-                const genderClass = gender === 'F' ? 'female' : gender === 'M' ? 'male' : '';
-                
-                html = `
-                    <div class="result-card success">
-                        <div class="result-icon">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <h2 class="result-title">Congratulations! 🎉</h2>
-                        <p class="result-details">Roll Number: <strong>${rollNumber}</strong></p>
-                        <div class="position">Position: ${position}</div>
-                `;
-                
-                if (genderClass) {
-                    html += `<p class="result-details">Gender: <span class="gender ${genderClass}">${genderText}</span></p>`;
-                }
-                
-                if (position <= 50) {
-                    html += `
-                        <div class="top-50-badge">
-                            <i class="fas fa-star"></i> 
-                            <strong>Congratulations on getting into JU IBA!</strong>
-                            <p>You are in the Top 50!</p>
-                        </div>
-                    `;
-                } else {
-                    html += `<p class="result-details">Congratulations on making the merit list!</p>`;
-                }
-                
-                html += `
-                        <a href="https://ju-admission.org/result" target="_blank" class="official-link">
-                            <i class="fas fa-external-link-alt"></i> Verify on Official Website
-                        </a>
-                    </div>
-                `;
-                
-                resultContainer.className = 'result show';
-                
-            } else if (data.status === 'not_found') {
-                html = `
-                    <div class="result-card not-found">
-                        <div class="result-icon">
-                            <i class="fas fa-search"></i>
-                        </div>
-                        <h2 class="result-title">Better Luck Next Time</h2>
-                        <p class="result-details">Roll Number <strong>${rollNumber}</strong> was not found in the merit list.</p>
-                        <p>Your name is not in the published merit list this time.</p>
-                        <a href="https://ju-admission.org/result" target="_blank" class="official-link">
-                            <i class="fas fa-external-link-alt"></i> Check Official Result
-                        </a>
-                    </div>
-                `;
-                
-                resultContainer.className = 'result show';
-                
-            } else {
-                // Error from server
-                html = `
-                    <div class="result-card not-found">
-                        <div class="result-icon">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <h2 class="result-title">Server Error</h2>
-                        <p class="result-details">${data.message || 'An error occurred while searching.'}</p>
-                        <p>Please check if your Google Sheet is set up correctly.</p>
-                    </div>
-                `;
-                
-                resultContainer.className = 'result show';
-            }
-            
-            resultContainer.innerHTML = html;
-            resultContainer.style.display = 'block';
-            
-            // Trigger animation
-            setTimeout(() => {
-                resultContainer.classList.add('show');
-            }, 10);
-        }
-        
-        function showError(message) {
-            const errorMsg = document.getElementById('errorMsg');
-            errorMsg.textContent = message;
-            errorMsg.style.display = 'block';
-        }
-        
-        // Allow pressing Enter to search
-        document.getElementById('rollInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                checkResult();
-            }
-        });
-        
-        // Simple test on page load (optional)
-        window.addEventListener('load', function() {
-            console.log('JU IBA Result Checker loaded');
-            console.log('Using Apps Script URL:', APPS_SCRIPT_URL);
-        });
-    </script>
+    }
+</script>
+
 </body>
 </html>
