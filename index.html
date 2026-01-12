@@ -2076,28 +2076,45 @@
             }
         }
         
-        async function saveResultsToGoogleSheets(data) {
-            try {
-                // Create FormData for proper submission
-                const formData = new FormData();
-                formData.append('action', 'submitResults');
-                formData.append('data', JSON.stringify(data));
-                
-                const response = await fetch(SUBMIT_URL, {
-                    method: 'POST',
-                    body: formData,
-                    mode: 'no-cors' // Required for Google Apps Script
-                });
-                
-                console.log('Results submitted to Google Sheets');
-                return true;
-                
-            } catch (error) {
-                console.error('Error submitting to Google Sheets:', error);
-                // Still return true to show results locally
-                return true;
-            }
+      async function saveResultsToGoogleSheets(data) {
+    try {
+        console.log('Submitting results to Google Sheets...');
+        
+        // Prepare the data
+        const submissionData = {
+            action: 'submitResults',
+            ...data
+        };
+        
+        console.log('Submission data:', JSON.stringify(submissionData).substring(0, 200) + '...');
+        
+        const response = await fetch(SUBMIT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(submissionData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
+        const result = await response.json();
+        console.log('Submission response:', result);
+        
+        if (result.success) {
+            return true;
+        } else {
+            throw new Error(result.message || 'Failed to save results');
+        }
+        
+    } catch (error) {
+        console.error('Error submitting to Google Sheets:', error);
+        // Return false but don't throw - let the user see results locally
+        return false;
+    }
+}
         
         function showResults(correct, wrong, unattempted, totalMarks, sectionScores, passStatus, allPassed, testId, durationMinutes) {
             // Update overall scores
