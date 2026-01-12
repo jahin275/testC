@@ -106,13 +106,10 @@ async function loadQuestions() {
         // Add timestamp to prevent caching issues
         const fetchUrl = url + "?t=" + new Date().getTime();
         
-        const response = await fetch(fetchUrl, {
-            method: 'GET',
-            mode: 'no-cors' // Remove this line if it causes issues, or try 'cors'
-        });
+        // REMOVE mode: 'no-cors' - it prevents reading response
+        const response = await fetch(fetchUrl);
         
         console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
         
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
@@ -144,46 +141,73 @@ async function loadQuestions() {
     } catch (error) {
         console.error("Error loading questions:", error);
         document.getElementById('formLoading').style.display = 'none';
-        document.getElementById('formError').style.display = 'block';
-        document.getElementById('errorMessage').textContent = 
-            `Failed to load questions: ${error.message}. Please check: 
-            1. Google Sheets has data in 'Questions' sheet
-            2. Apps Script is deployed as web app
-            3. Access is set to 'Anyone'`;
+        
+        // Try alternative method
+        try {
+            await loadQuestionsAlternative();
+        } catch (altError) {
+            console.error("Alternative method failed:", altError);
+            // Load sample questions as fallback
+            loadSampleQuestions();
+        }
     }
 }
 
-// Alternative load method for CORS issues
+// Alternative load method using JSONP for CORS
 async function loadQuestionsAlternative() {
-    try {
-        console.log('Trying alternative loading method...');
+    return new Promise((resolve, reject) => {
+        console.log('Trying alternative loading method (JSONP)...');
         
-        // Use JSONP approach for CORS issues
-        const url = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec?callback=handleQuestions";
+        // Create a unique callback function name
+        const callbackName = 'handleQuestions_' + Date.now();
         
-        // Create script tag
+        // Create the script URL
+        const url = `https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec?callback=${callbackName}`;
+        
+        // Define the callback function
+        window[callbackName] = function(data) {
+            console.log('JSONP response received:', data);
+            
+            // Clean up
+            delete window[callbackName];
+            script.remove();
+            
+            if (data && data.success) {
+                questionsData = data.questions || [];
+                totalQuestions = data.questions.length;
+                testConfig = data.config || testConfig;
+                
+                initializeUserResponses();
+                updateFormInfo();
+                document.getElementById('startTestBtn').disabled = false;
+                document.getElementById('formLoading').style.display = 'none';
+                
+                resolve(data);
+            } else {
+                reject(new Error("Invalid JSONP response"));
+            }
+        };
+        
+        // Create and add script tag
         const script = document.createElement('script');
         script.src = url;
+        script.onerror = () => {
+            delete window[callbackName];
+            script.remove();
+            reject(new Error('Failed to load script'));
+        };
+        
         document.head.appendChild(script);
         
-    } catch (error) {
-        console.error('Alternative load failed:', error);
-        // Load sample questions as fallback
-        loadSampleQuestions();
-    }
-}
-
-// Handle JSONP callback
-function handleQuestions(data) {
-    console.log('JSONP response:', data);
-    if (data.success) {
-        questionsData = data.questions;
-        totalQuestions = data.questions.length;
-        initializeUserResponses();
-        updateFormInfo();
-        document.getElementById('startTestBtn').disabled = false;
-        document.getElementById('formLoading').style.display = 'none';
-    }
+        // Set timeout
+        setTimeout(() => {
+            if (window[callbackName]) {
+                delete window[callbackName];
+                script.remove();
+                reject(new Error('JSONP timeout'));
+            }
+        }, 10000);
+    });
 }
 
 // Load sample questions as fallback
@@ -221,7 +245,9 @@ function loadSampleQuestions() {
         }
     ];
     
-    totalQuestions = 4; // Only count actual questions, not text rows
+    // Count only actual questions (not text rows)
+    const actualQuestions = questionsData.filter(q => q.Type !== 'Text Row').length;
+    totalQuestions = actualQuestions;
     
     initializeUserResponses();
     updateFormInfo();
@@ -230,7 +256,7 @@ function loadSampleQuestions() {
     document.getElementById('formLoading').style.display = 'none';
     document.getElementById('formError').style.display = 'block';
     document.getElementById('errorMessage').textContent = 
-        "Using sample questions. Could not connect to Google Sheets. Please check your internet connection and Apps Script deployment.";
+        "Using sample questions. Could not connect to Google Sheets. Please check: 1. Google Sheets has data 2. Apps Script is deployed 3. Access is set to 'Anyone'";
 }
 
 function initializeUserResponses() {
@@ -619,8 +645,9 @@ async function submitTest() {
         // Send to Google Sheets
         const response = await fetch("https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec", {
             method: "POST",
-            mode: 'no-cors', // Remove if causing issues
-            headers: { "Content-Type": "text/plain" },
+            headers: { 
+                "Content-Type": "text/plain"
+            },
             body: JSON.stringify(submissionData)
         });
         
@@ -660,7 +687,15 @@ function displaySampleResults(submissionData) {
     });
     
     const totalMarks = (correct * 1) - (wrong * 0.25);
-    const percentage = (totalMarks / Object.keys(userResponses).length) * 100;
+    const totalPossibleMarks = Object.keys(userResponses).length;
+    const percentage = totalPossibleMarks > 0 ? (totalMarks / totalPossibleMarks) * 100 : 0;
+    
+    // Calculate section scores
+    const sectionScores = {
+        English: { correct: Math.floor(correct * 0.4), wrong: Math.floor(wrong * 0.4), score: (totalMarks * 0.4).toFixed(2) },
+        Math: { correct: Math.floor(correct * 0.35), wrong: Math.floor(wrong * 0.35), score: (totalMarks * 0.35).toFixed(2) },
+        Analytical: { correct: Math.floor(correct * 0.25), wrong: Math.floor(wrong * 0.25), score: (totalMarks * 0.25).toFixed(2) }
+    };
     
     const scoreData = {
         correct: correct,
@@ -668,27 +703,11 @@ function displaySampleResults(submissionData) {
         unattempted: unattempted,
         totalMarks: totalMarks.toFixed(2),
         percentage: percentage.toFixed(2),
-        sectionScores: {
-            English: { 
-                score: (Math.random() * 15).toFixed(2), 
-                correct: Math.floor(Math.random() * 10),
-                wrong: Math.floor(Math.random() * 5)
-            },
-            Math: { 
-                score: (Math.random() * 10).toFixed(2), 
-                correct: Math.floor(Math.random() * 8),
-                wrong: Math.floor(Math.random() * 3)
-            },
-            Analytical: { 
-                score: (Math.random() * 8).toFixed(2), 
-                correct: Math.floor(Math.random() * 6),
-                wrong: Math.floor(Math.random() * 2)
-            }
-        },
+        sectionScores: sectionScores,
         passStatus: {
-            English: Math.random() > 0.5,
-            Math: Math.random() > 0.5,
-            Analytical: Math.random() > 0.5
+            English: sectionScores.English.score >= 8.75,
+            Math: sectionScores.Math.score >= 4.5,
+            Analytical: sectionScores.Analytical.score >= 3.5
         }
     };
     
