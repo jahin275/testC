@@ -54,76 +54,102 @@ function toggleMobileSubmit() {
     }
 }
 
-// Load questions from Google Sheets
 async function loadQuestions() {
-    try {
-        console.log('Loading questions...');
-        showLoading(true);
-        
-        // Try direct fetch first
-        const url = APPS_SCRIPT_URL + "?t=" + Date.now();
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        if (result.success && result.questions) {
-            questionsData = result.questions;
-            totalQuestions = result.questions.filter(q => 
-                q.Type !== 'Text Row' && 
-                q.Type !== '<strong>Text Row</strong>'
-            ).length;
-            
-            testConfig = result.config || testConfig;
-            
-            console.log(`Loaded ${questionsData.length} rows, ${totalQuestions} actual questions`);
-            
-            // Initialize user responses
-            initializeUserResponses();
-            
-            // Update UI
-            updateFormInfo();
-            enableStartButton();
-            showLoading(false);
-            
-        } else {
-            throw new Error("Invalid response format");
-        }
-        
-    } catch (error) {
-        console.error("Error loading questions:", error);
-        loadSampleQuestions();
+  try {
+    console.log('Loading questions from Google Sheets...');
+    document.getElementById('formLoading').style.display = 'block';
+    document.getElementById('formError').style.display = 'none';
+    document.getElementById('startTestBtn').disabled = true;
+
+    // Use your working URL (no CORS proxy needed)
+    const url = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
+    
+    // Add cache-busting parameter
+    const response = await fetch(url + "?t=" + Date.now());
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+    
+    const result = await response.json();
+    console.log('API Response received:', result);
+    
+    if (result.success && result.questions && result.questions.length > 0) {
+      questionsData = result.questions;
+      totalQuestions = result.questions.filter(q => 
+        q.Type !== 'Text Row' && q.Type !== '<strong>Text Row</strong>'
+      ).length;
+      
+      console.log(`Total rows: ${questionsData.length}, Actual questions: ${totalQuestions}`);
+      
+      // Initialize user responses
+      initializeUserResponses();
+      
+      // Update UI
+      document.getElementById('totalQuestionsCount').textContent = totalQuestions;
+      document.getElementById('fixedTotalQuestions').textContent = totalQuestions;
+      document.getElementById('totalQuestions').textContent = totalQuestions;
+      document.getElementById('startTestBtn').disabled = false;
+      document.getElementById('formLoading').style.display = 'none';
+      
+      console.log(`Questions loaded successfully! Found ${totalQuestions} test questions.`);
+      
+    } else {
+      throw new Error("No valid questions found in response");
+    }
+    
+  } catch (error) {
+    console.error("Error loading questions:", error);
+    
+    // Show detailed error
+    document.getElementById('formError').style.display = 'block';
+    document.getElementById('errorMessage').innerHTML = `
+      <strong>Frontend Error:</strong> ${error.message}<br><br>
+      <small>Your Google Apps Script API is working (test it in browser), 
+      but there's a frontend processing issue.</small>
+    `;
+    
+    // Load sample questions as fallback
+    loadSampleQuestions();
+  }
 }
 
-// Initialize user responses
+// Make sure this function exists
 function initializeUserResponses() {
-    userResponses = {};
-    let questionCounter = 0;
+  userResponses = {};
+  let questionCounter = 0;
+  
+  questionsData.forEach((q, index) => {
+    const type = q.Type || '';
+    // Skip text rows
+    if (type.includes('Text Row') || !q.Question) return;
     
-    questionsData.forEach((q, index) => {
-        const type = q.Type || '';
-        // Skip text rows
-        if (type.includes('Text Row') || !q.Question) return;
-        
-        questionCounter++;
-        const questionId = `q${questionCounter}`;
-        const section = getSectionFromType(type);
-        
-        userResponses[questionId] = {
-            questionNumber: questionCounter,
-            userAnswer: '',
-            section: section,
-            marks: parseFloat(q.Marks) || 1,
-            originalIndex: index,
-            questionData: q
-        };
-    });
+    questionCounter++;
+    const questionId = `q${questionCounter}`;
+    const section = getSectionFromType(type);
     
+    userResponses[questionId] = {
+      questionNumber: questionCounter,
+      userAnswer: '',
+      section: section,
+      marks: parseFloat(q.Marks) || 1,
+      originalIndex: index,
+      questionData: q
+    };
+  });
+  
+  console.log(`Initialized ${questionCounter} user responses`);
+}
+
+function getSectionFromType(type) {
+  if (!type) return 'English';
+  
+  const typeLower = type.toString().toLowerCase();
+  if (typeLower.includes('math')) return 'Math';
+  if (typeLower.includes('analytical') || typeLower.includes('puzzle') || 
+      typeLower.includes('critical') || typeLower.includes('data')) return 'Analytical';
+  return 'English';
+}
     console.log(`Initialized ${questionCounter} user responses`);
 }
 
