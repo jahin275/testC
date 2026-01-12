@@ -40,15 +40,6 @@ function setupEventListeners() {
     document.getElementById('name').addEventListener('input', validateName);
     document.getElementById('email').addEventListener('input', validateEmail);
     document.getElementById('phone').addEventListener('input', validatePhone);
-    
-    // Prevent tab switching during test
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Prevent right-click during test
-    document.addEventListener('contextmenu', handleContextMenu);
-    
-    // Prevent keyboard shortcuts
-    document.addEventListener('keydown', handleKeyDown);
 }
 
 // Security functions
@@ -66,31 +57,6 @@ function handleVisibilityChange() {
     }
 }
 
-function handleContextMenu(e) {
-    if (isTestActive) {
-        e.preventDefault();
-        alert('Right-click is disabled during the test!');
-    }
-}
-
-function handleKeyDown(e) {
-    if (isTestActive) {
-        // Prevent developer tools
-        if (e.key === 'F12' || 
-            (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
-            (e.ctrlKey && e.key === 'u')) {
-            e.preventDefault();
-            alert('Developer tools are disabled during the test!');
-        }
-        
-        // Prevent copy/paste
-        if (e.ctrlKey && (e.key === 'c' || e.key === 'x' || e.key === 'v')) {
-            e.preventDefault();
-            alert('Copy/paste is disabled during the test!');
-        }
-    }
-}
-
 // Load questions from Google Sheets
 async function loadQuestions() {
     try {
@@ -99,14 +65,12 @@ async function loadQuestions() {
         document.getElementById('formError').style.display = 'none';
         document.getElementById('startTestBtn').disabled = true;
         
-        // USE YOUR GOOGLE APPS SCRIPT URL HERE
         const url = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
         console.log('Fetching from URL:', url);
         
         // Add timestamp to prevent caching issues
         const fetchUrl = url + "?t=" + new Date().getTime();
         
-        // REMOVE mode: 'no-cors' - it prevents reading response
         const response = await fetch(fetchUrl);
         
         console.log('Response status:', response.status);
@@ -116,15 +80,15 @@ async function loadQuestions() {
         }
         
         const result = await response.json();
-        console.log('Response data received:', result);
+        console.log('Response data received. Questions count:', result.questions.length);
         
         if (result.success && result.questions && result.questions.length > 0) {
             questionsData = result.questions;
             totalQuestions = result.questions.length;
             testConfig = result.config || testConfig;
             
-            console.log(`Successfully loaded ${totalQuestions} questions`);
-            console.log('Sample question:', questionsData[0]);
+            console.log(`Successfully loaded ${totalQuestions} items from Google Sheets`);
+            console.log('Config loaded:', testConfig);
             
             // Initialize user responses
             initializeUserResponses();
@@ -135,128 +99,23 @@ async function loadQuestions() {
             document.getElementById('formLoading').style.display = 'none';
             
         } else {
-            throw new Error("No questions found or invalid response format");
+            throw new Error("No questions found in response");
         }
         
     } catch (error) {
         console.error("Error loading questions:", error);
         document.getElementById('formLoading').style.display = 'none';
+        document.getElementById('formError').style.display = 'block';
+        document.getElementById('errorMessage').textContent = 
+            `Failed to load questions: ${error.message}. The data is loaded but there might be a display issue.`;
         
-        // Try alternative method
-        try {
-            await loadQuestionsAlternative();
-        } catch (altError) {
-            console.error("Alternative method failed:", altError);
-            // Load sample questions as fallback
-            loadSampleQuestions();
+        // Try to load anyway if we got data
+        if (questionsData.length > 0) {
+            initializeUserResponses();
+            updateFormInfo();
+            document.getElementById('startTestBtn').disabled = false;
         }
     }
-}
-
-// Alternative load method using JSONP for CORS
-async function loadQuestionsAlternative() {
-    return new Promise((resolve, reject) => {
-        console.log('Trying alternative loading method (JSONP)...');
-        
-        // Create a unique callback function name
-        const callbackName = 'handleQuestions_' + Date.now();
-        
-        // Create the script URL
-        const url = `https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec?callback=${callbackName}`;
-        
-        // Define the callback function
-        window[callbackName] = function(data) {
-            console.log('JSONP response received:', data);
-            
-            // Clean up
-            delete window[callbackName];
-            script.remove();
-            
-            if (data && data.success) {
-                questionsData = data.questions || [];
-                totalQuestions = data.questions.length;
-                testConfig = data.config || testConfig;
-                
-                initializeUserResponses();
-                updateFormInfo();
-                document.getElementById('startTestBtn').disabled = false;
-                document.getElementById('formLoading').style.display = 'none';
-                
-                resolve(data);
-            } else {
-                reject(new Error("Invalid JSONP response"));
-            }
-        };
-        
-        // Create and add script tag
-        const script = document.createElement('script');
-        script.src = url;
-        script.onerror = () => {
-            delete window[callbackName];
-            script.remove();
-            reject(new Error('Failed to load script'));
-        };
-        
-        document.head.appendChild(script);
-        
-        // Set timeout
-        setTimeout(() => {
-            if (window[callbackName]) {
-                delete window[callbackName];
-                script.remove();
-                reject(new Error('JSONP timeout'));
-            }
-        }, 10000);
-    });
-}
-
-// Load sample questions as fallback
-function loadSampleQuestions() {
-    console.log('Loading sample questions as fallback...');
-    
-    questionsData = [
-        {
-            "Question": "If $f(x) = \\frac{x+2}{x-2}$ for all integers except $x=2$, which has the greatest value?",
-            "Option A": "$f(-1)$",
-            "Option B": "$f(0)$",
-            "Option C": "$f(1)$",
-            "Option D": "$f(3)$",
-            "Option E": "None of these",
-            "Type": "Math",
-            "Marks": "1"
-        },
-        {
-            "Question": "The CEO's __________ management style discouraged open communication and reduced employee morale.",
-            "Option A": "conciliatory",
-            "Option B": "autocratic",
-            "Option C": "benevolent",
-            "Option D": "lenient",
-            "Option E": "ambiguous",
-            "Type": "English",
-            "Marks": "1"
-        },
-        {
-            "Question": "Section 1- English (30)",
-            "Type": "Text Row"
-        },
-        {
-            "Question": "Question 1 to 4: Fill in the blanks with the best word/words:",
-            "Type": "Text Row"
-        }
-    ];
-    
-    // Count only actual questions (not text rows)
-    const actualQuestions = questionsData.filter(q => q.Type !== 'Text Row').length;
-    totalQuestions = actualQuestions;
-    
-    initializeUserResponses();
-    updateFormInfo();
-    
-    document.getElementById('startTestBtn').disabled = false;
-    document.getElementById('formLoading').style.display = 'none';
-    document.getElementById('formError').style.display = 'block';
-    document.getElementById('errorMessage').textContent = 
-        "Using sample questions. Could not connect to Google Sheets. Please check: 1. Google Sheets has data 2. Apps Script is deployed 3. Access is set to 'Anyone'";
 }
 
 function initializeUserResponses() {
@@ -265,24 +124,34 @@ function initializeUserResponses() {
     
     questionsData.forEach((q, index) => {
         // Only create responses for actual questions, not text rows
-        if (q.Type !== 'Text Row') {
+        if (q.Type && !q.Type.includes('Text Row')) {
             questionCount++;
             const questionId = `q${questionCount}`;
             userResponses[questionId] = {
                 questionNumber: questionCount,
                 userAnswer: '',
-                section: q.Type || 'General',
+                section: getSectionFromType(q.Type),
                 marks: parseFloat(q.Marks) || 1,
                 originalIndex: index
             };
         }
     });
     
-    console.log(`Initialized ${questionCount} user responses`);
+    console.log(`Initialized ${questionCount} user responses for actual questions`);
+}
+
+function getSectionFromType(type) {
+    if (!type) return 'General';
+    if (type.includes('English') || type === 'MCQ') return 'English';
+    if (type.includes('Math') || type === 'Maths') return 'Math';
+    if (type.includes('Analytical') || type.includes('Puzzle') || type.includes('Critical Reasoning') || type.includes('Data Sufficiency')) return 'Analytical';
+    return 'General';
 }
 
 function updateFormInfo() {
-    const actualQuestions = questionsData.filter(q => q.Type !== 'Text Row').length;
+    const actualQuestions = questionsData.filter(q => q.Type && !q.Type.includes('Text Row')).length;
+    console.log(`Actual questions: ${actualQuestions}, Total items: ${questionsData.length}`);
+    
     document.getElementById('totalQuestionsCount').textContent = actualQuestions;
     document.getElementById('fixedTotalQuestions').textContent = actualQuestions;
     document.getElementById('totalQuestions').textContent = actualQuestions;
@@ -350,7 +219,7 @@ function validateAndStartTest() {
     const isPhoneValid = validatePhone();
     
     // Check if we have questions loaded
-    const actualQuestions = questionsData.filter(q => q.Type !== 'Text Row').length;
+    const actualQuestions = questionsData.filter(q => q.Type && !q.Type.includes('Text Row')).length;
     if (actualQuestions === 0) {
         alert('No questions loaded. Please refresh the page or check your connection.');
         return;
@@ -384,6 +253,9 @@ function startTest() {
     // Update progress
     updateProgress();
     
+    // Setup security listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
     // Setup beforeunload warning
     window.addEventListener('beforeunload', function(e) {
         if (isTestActive) {
@@ -404,62 +276,61 @@ function displayQuestions() {
     container.innerHTML = '';
     loading.style.display = 'block';
     
-    setTimeout(() => {
-        // Filter out text rows for section grouping
-        const actualQuestions = questionsData.filter(q => q.Type !== 'Text Row');
-        const textRows = questionsData.filter(q => q.Type === 'Text Row');
+    // Filter out text rows for section grouping
+    const actualQuestions = questionsData.filter(q => q.Type && !q.Type.includes('Text Row'));
+    const textRows = questionsData.filter(q => q.Type && q.Type.includes('Text Row'));
+    
+    console.log(`Displaying: ${actualQuestions.length} questions, ${textRows.length} text rows`);
+    
+    // Group questions by section
+    const sections = {
+        english: [],
+        math: [],
+        analytical: [],
+        general: []
+    };
+    
+    let questionCounter = 0;
+    
+    // Process all items in order
+    questionsData.forEach((item, index) => {
+        const type = item.Type || '';
         
-        // Group questions by section
-        const sections = {
-            english: [],
-            math: [],
-            analytical: [],
-            general: []
-        };
-        
-        let questionCounter = 0;
-        
-        // First add text rows
-        textRows.forEach(row => {
+        if (type.includes('Text Row')) {
+            // Add text row
             const textRowDiv = document.createElement('div');
             textRowDiv.className = 'question-container question-text-row';
+            
+            // Handle HTML tags in text rows
+            let questionText = item.Question || '';
+            // Convert HTML entities and preserve formatting
+            questionText = questionText
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&');
+            
             textRowDiv.innerHTML = `
-                <div class="question-text">${row.Question || ''}</div>
+                <div class="question-text">${questionText}</div>
             `;
             container.appendChild(textRowDiv);
-        });
-        
-        // Then add actual questions
-        actualQuestions.forEach((q, index) => {
+        } else {
+            // Actual question
             questionCounter++;
-            const type = q.Type || 'General';
-            let section = 'general';
-            
-            if (type.includes('English')) section = 'english';
-            else if (type.includes('Math')) section = 'math';
-            else if (type.includes('Analytical')) section = 'analytical';
+            const section = getSectionFromType(type);
             
             sections[section].push({
-                ...q,
+                ...item,
                 displayNumber: questionCounter,
                 questionId: `q${questionCounter}`,
-                originalIndex: index
+                originalIndex: index,
+                section: section
             });
-        });
-        
-        // Display questions by section
-        Object.entries(sections).forEach(([section, questions]) => {
-            if (questions.length > 0 && section !== 'general') {
-                // Add section header
-                const sectionHeader = document.createElement('div');
-                sectionHeader.className = 'question-container question-text-row';
-                sectionHeader.innerHTML = `
-                    <h3>${section.charAt(0).toUpperCase() + section.slice(1)} Section</h3>
-                    <p>${questions.length} question${questions.length > 1 ? 's' : ''}</p>
-                `;
-                container.appendChild(sectionHeader);
-            }
-            
+        }
+    });
+    
+    // Display questions by section that have questions
+    Object.entries(sections).forEach(([section, questions]) => {
+        if (questions.length > 0) {
             // Add questions for this section
             questions.forEach(q => {
                 const questionDiv = document.createElement('div');
@@ -467,17 +338,33 @@ function displayQuestions() {
                 questionDiv.id = `question-${q.displayNumber}`;
                 questionDiv.dataset.section = section;
                 
+                // Process question text with HTML tags
+                let questionText = q.Question || '';
+                // Convert HTML entities
+                questionText = questionText
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&amp;/g, '&');
+                
                 // Regular MCQ with up to 5 options
                 const optionsHtml = [];
                 
                 // Add options A-E if they exist
                 ['A', 'B', 'C', 'D', 'E'].forEach(option => {
                     const optionKey = `Option ${option}`;
-                    if (q[optionKey] && q[optionKey].trim() !== '') {
+                    const optionValue = q[optionKey];
+                    if (optionValue !== undefined && optionValue !== null && optionValue.toString().trim() !== '') {
+                        let optionText = optionValue.toString();
+                        // Convert HTML entities in options too
+                        optionText = optionText
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&amp;/g, '&');
+                        
                         optionsHtml.push(`
                             <div class="option" onclick="selectOption('${q.questionId}', '${option.toLowerCase()}')">
                                 <input type="radio" name="${q.questionId}" value="${option.toLowerCase()}" id="${q.questionId}${option.toLowerCase()}">
-                                <div class="option-label">${option}) ${q[optionKey]}</div>
+                                <div class="option-label">${option}) ${optionText}</div>
                             </div>
                         `);
                     }
@@ -485,7 +372,7 @@ function displayQuestions() {
                 
                 questionDiv.innerHTML = `
                     <div class="question-number">${q.displayNumber}</div>
-                    <div class="question-text">${q.Question || ''}</div>
+                    <div class="question-text">${questionText}</div>
                     <div class="options-container">
                         ${optionsHtml.join('')}
                     </div>
@@ -493,18 +380,19 @@ function displayQuestions() {
                 
                 container.appendChild(questionDiv);
             });
-        });
-        
-        loading.style.display = 'none';
-        
-        // Render MathJax for LaTeX equations
-        if (window.MathJax && MathJax.typeset) {
-            setTimeout(() => {
-                MathJax.typeset();
-            }, 500);
         }
-        
-    }, 500);
+    });
+    
+    loading.style.display = 'none';
+    
+    // Render MathJax for LaTeX equations
+    if (window.MathJax && MathJax.typeset) {
+        setTimeout(() => {
+            MathJax.typeset();
+        }, 1000);
+    }
+    
+    console.log(`Display complete: ${questionCounter} questions shown`);
 }
 
 function selectOption(questionId, option) {
@@ -560,10 +448,11 @@ function startTimer() {
         updateTimerProgress();
         
         // Update warning display
-        const minutesLeft = Math.ceil(timeLeft / 60);
         const warningElement = document.getElementById('warningCountdown');
         if (warningElement) {
-            warningElement.textContent = `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`;
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            warningElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
         
         // Change timer color
@@ -616,6 +505,9 @@ async function submitTest() {
     clearInterval(timerInterval);
     isTestActive = false;
     
+    // Remove security listeners
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    
     const endTime = new Date().toISOString();
     const duration = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
     
@@ -667,34 +559,70 @@ async function submitTest() {
 }
 
 function displaySampleResults(submissionData) {
-    // Calculate simple results for demo
+    // Calculate simple results based on responses
+    const totalQuestions = Object.keys(userResponses).length;
     let correct = 0;
     let wrong = 0;
     let unattempted = 0;
     
+    // Section counts
+    const sectionCounts = {
+        English: { correct: 0, wrong: 0, total: 0 },
+        Math: { correct: 0, wrong: 0, total: 0 },
+        Analytical: { correct: 0, wrong: 0, total: 0 }
+    };
+    
     Object.values(userResponses).forEach(response => {
+        const section = response.section || 'General';
+        
+        if (sectionCounts[section]) {
+            sectionCounts[section].total++;
+        }
+        
         if (response.userAnswer === '') {
             unattempted++;
         } else {
-            // For demo, randomly assign correct/wrong
-            const isCorrect = Math.random() > 0.5;
+            // For demo, give 70% chance of being correct
+            const isCorrect = Math.random() > 0.3;
             if (isCorrect) {
                 correct++;
+                if (sectionCounts[section]) {
+                    sectionCounts[section].correct++;
+                }
             } else {
                 wrong++;
+                if (sectionCounts[section]) {
+                    sectionCounts[section].wrong++;
+                }
             }
         }
     });
     
+    // Calculate scores with negative marking
     const totalMarks = (correct * 1) - (wrong * 0.25);
-    const totalPossibleMarks = Object.keys(userResponses).length;
+    const totalPossibleMarks = totalQuestions;
     const percentage = totalPossibleMarks > 0 ? (totalMarks / totalPossibleMarks) * 100 : 0;
     
     // Calculate section scores
-    const sectionScores = {
-        English: { correct: Math.floor(correct * 0.4), wrong: Math.floor(wrong * 0.4), score: (totalMarks * 0.4).toFixed(2) },
-        Math: { correct: Math.floor(correct * 0.35), wrong: Math.floor(wrong * 0.35), score: (totalMarks * 0.35).toFixed(2) },
-        Analytical: { correct: Math.floor(correct * 0.25), wrong: Math.floor(wrong * 0.25), score: (totalMarks * 0.25).toFixed(2) }
+    const sectionScores = {};
+    Object.keys(sectionCounts).forEach(section => {
+        const sec = sectionCounts[section];
+        if (sec.total > 0) {
+            const secScore = (sec.correct * 1) - (sec.wrong * 0.25);
+            sectionScores[section] = {
+                score: secScore.toFixed(2),
+                correct: sec.correct,
+                wrong: sec.wrong,
+                total: sec.total
+            };
+        }
+    });
+    
+    // Determine pass/fail
+    const passStatus = {
+        English: (sectionScores.English?.score || 0) >= testConfig.passingMarks.english,
+        Math: (sectionScores.Math?.score || 0) >= testConfig.passingMarks.math,
+        Analytical: (sectionScores.Analytical?.score || 0) >= testConfig.passingMarks.analytical
     };
     
     const scoreData = {
@@ -704,11 +632,7 @@ function displaySampleResults(submissionData) {
         totalMarks: totalMarks.toFixed(2),
         percentage: percentage.toFixed(2),
         sectionScores: sectionScores,
-        passStatus: {
-            English: sectionScores.English.score >= 8.75,
-            Math: sectionScores.Math.score >= 4.5,
-            Analytical: sectionScores.Analytical.score >= 3.5
-        }
+        passStatus: passStatus
     };
     
     // Update overall scores
@@ -740,6 +664,15 @@ function displaySampleResults(submissionData) {
                 card.style.borderColor = '#f44336';
                 card.style.background = '#ffebee';
             }
+        } else {
+            // Default values
+            document.getElementById(`${section.toLowerCase()}Score`).textContent = "0.00";
+            document.getElementById(`${section.toLowerCase()}Correct`).textContent = "0";
+            document.getElementById(`${section.toLowerCase()}Wrong`).textContent = "0";
+            
+            const statusElement = document.getElementById(`${section.toLowerCase()}Status`);
+            statusElement.textContent = 'FAIL';
+            statusElement.className = 'status-badge fail';
         }
     });
     
@@ -747,6 +680,24 @@ function displaySampleResults(submissionData) {
     document.getElementById('resultOverlay').style.display = 'flex';
     document.getElementById('fixedTimer').style.display = 'none';
     document.getElementById('mobileSubmit').style.display = 'none';
+    
+    // Set result message
+    const allPassed = passStatus.English && passStatus.Math && passStatus.Analytical;
+    const resultMsg = document.getElementById('resultMessage');
+    if (allPassed) {
+        resultMsg.innerHTML = `<i class="fas fa-info-circle"></i><p>Congratulations! You passed all sections. Check your email for detailed feedback from Mahdi Jahin.</p>`;
+        resultMsg.style.background = '#d4edda';
+        resultMsg.style.color = '#155724';
+    } else {
+        const failedSections = [];
+        if (!passStatus.English) failedSections.push('English');
+        if (!passStatus.Math) failedSections.push('Math');
+        if (!passStatus.Analytical) failedSections.push('Analytical');
+        
+        resultMsg.innerHTML = `<i class="fas fa-info-circle"></i><p>You need to work on: ${failedSections.join(', ')}. Check your email for detailed feedback from Mahdi Jahin.</p>`;
+        resultMsg.style.background = '#f8d7da';
+        resultMsg.style.color = '#721c24';
+    }
 }
 
 function closeResults() {
@@ -830,16 +781,3 @@ window.addEventListener('resize', function() {
         document.getElementById('mobileSubmit').style.display = 'none';
     }
 });
-
-// Debug function to check connection
-async function testConnection() {
-    try {
-        console.log('Testing connection to Google Apps Script...');
-        const response = await fetch("https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec");
-        console.log('Connection test response:', response);
-        return response.ok;
-    } catch (error) {
-        console.error('Connection test failed:', error);
-        return false;
-    }
-}
