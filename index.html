@@ -391,10 +391,20 @@
         .question-text-row {
             background: #ffe0d2;
             border-left: 5px solid #ff6b35;
-            font-weight: bold;
             color: #ff6b35;
             margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 8px;
             font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .question-text-row strong {
+            font-weight: 700;
+        }
+
+        .question-text-row em {
+            font-style: italic;
         }
 
         .question-number {
@@ -420,10 +430,12 @@
 
         .question-text strong {
             color: #ff6b35;
+            font-weight: 700;
         }
 
         .question-text em {
             color: #616161;
+            font-style: italic;
         }
 
         .question-text u {
@@ -470,6 +482,7 @@
         .option-label {
             flex: 1;
             font-size: 1rem;
+            line-height: 1.5;
         }
 
         .option-label strong {
@@ -1235,11 +1248,6 @@
             window.addEventListener('blur', handleWindowBlur);
             window.addEventListener('focus', handleWindowFocus);
             
-            // Fullscreen mode (for better security)
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e => console.log('Fullscreen not supported'));
-            }
-            
             // Disable select
             document.body.style.userSelect = 'none';
             document.body.style.webkitUserSelect = 'none';
@@ -1255,11 +1263,6 @@
             // Re-enable select
             document.body.style.userSelect = 'auto';
             document.body.style.webkitUserSelect = 'auto';
-            
-            // Exit fullscreen
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
         }
         
         function handleVisibilityChange() {
@@ -1329,7 +1332,7 @@
         }
 
         // ============================================
-        // LOAD QUESTIONS
+        // LOAD QUESTIONS - FIXED VERSION
         // ============================================
         async function loadQuestions() {
             try {
@@ -1340,7 +1343,7 @@
                 const startBtn = document.getElementById('startTestBtn');
                 if (startBtn) startBtn.disabled = true;
                 
-                const url = APPS_SCRIPT_URL + "?t=" + Date.now();
+                const url = APPS_SCRIPT_URL + "?action=getQuestions&t=" + Date.now();
                 const response = await fetch(url);
                 
                 if (!response.ok) {
@@ -1376,15 +1379,23 @@
                 }
                 
                 // Load sample questions
-                setTimeout(loadSampleQuestions, 2000);
+                setTimeout(loadSampleQuestions, 1000);
             }
         }
         
         function countActualQuestions(data) {
-            return data.filter(q => {
+            let count = 0;
+            data.forEach(q => {
                 const type = q.Type || '';
-                return !type.includes('Text Row') && q.Question;
-            }).length;
+                const question = q.Question || '';
+                // Count if not a Text Row and has actual question text
+                if (!type.includes('Text Row') && question.trim() && 
+                    (type.includes('MCQ') || type.includes('Math') || type.includes('Puzzle') || 
+                     type.includes('Critical Reasoning') || type.includes('Data Sufficiency'))) {
+                    count++;
+                }
+            });
+            return count;
         }
         
         function processQuestions() {
@@ -1394,11 +1405,20 @@
             
             questionsData.forEach((q, index) => {
                 const type = q.Type || '';
-                if (type.includes('Text Row') || !q.Question) return;
+                const question = q.Question || '';
+                const answer = (q.Answer || '').toString().toLowerCase().trim();
+                
+                // Skip if it's a Text Row or empty question
+                if (type.includes('Text Row') || !question.trim()) return;
+                
+                // Skip if not a valid question type
+                if (!type.includes('MCQ') && !type.includes('Math') && !type.includes('Puzzle') && 
+                    !type.includes('Critical Reasoning') && !type.includes('Data Sufficiency')) {
+                    return;
+                }
                 
                 questionCounter++;
                 const questionId = `q${questionCounter}`;
-                const answer = (q.Answer || '').toString().toLowerCase().trim();
                 const section = getSectionFromType(type);
                 
                 if (answer) {
@@ -1407,13 +1427,14 @@
                 
                 userResponses[questionId] = {
                     questionNumber: questionCounter,
-                    questionText: q.Question || '',
+                    questionText: question,
                     userAnswer: '',
                     correctAnswer: answer,
                     isCorrect: false,
                     selectedOption: '',
                     section: section,
-                    marks: parseFloat(q.Marks) || 1
+                    marks: parseFloat(q.Marks) || 1,
+                    type: type
                 };
             });
             
@@ -1425,7 +1446,7 @@
             const typeLower = type.toLowerCase();
             if (typeLower.includes('math')) return 'Math';
             if (typeLower.includes('analytical') || typeLower.includes('puzzle') || 
-                typeLower.includes('critical') || typeLower.includes('data')) return 'Analytical';
+                typeLower.includes('critical') || type.includes('Data Sufficiency')) return 'Analytical';
             return 'English';
         }
         
@@ -1435,6 +1456,17 @@
             questionsData = [
                 {
                     "Question": "<strong>Section 1- English (30)</strong>",
+                    "Option A": "",
+                    "Option B": "",
+                    "Option C": "",
+                    "Option D": "",
+                    "Option E": "",
+                    "Answer": "",
+                    "Type": "Text Row",
+                    "Marks": "0"
+                },
+                {
+                    "Question": "<strong>Question 1 to 4:</strong> Fill in the blanks with the best word/words:",
                     "Option A": "",
                     "Option B": "",
                     "Option C": "",
@@ -1456,13 +1488,24 @@
                     "Marks": "1"
                 },
                 {
-                    "Question": "2. Solve: $x^2 - 5x + 6 = 0$",
-                    "Option A": "2, 3",
-                    "Option B": "1, 6",
-                    "Option C": "-2, -3",
-                    "Option D": "None",
+                    "Question": "<strong>Section 2- Maths (25) DO NOT USE CALCULATOR</strong>",
+                    "Option A": "",
+                    "Option B": "",
+                    "Option C": "",
+                    "Option D": "",
                     "Option E": "",
-                    "Answer": "A",
+                    "Answer": "",
+                    "Type": "Text Row",
+                    "Marks": "0"
+                },
+                {
+                    "Question": "1. If $x+y=15$ and $x^2+y^2=125$, what is the value of $x^3+y^3$?",
+                    "Option A": "1125",
+                    "Option B": "1000",
+                    "Option C": "1250",
+                    "Option D": "1375",
+                    "Option E": "1500",
+                    "Answer": "B",
                     "Type": "Maths",
                     "Marks": "1"
                 }
@@ -1684,7 +1727,6 @@
         
         function displayQuestions() {
             const questionsContainer = document.getElementById('questionsContainer');
-            const questionLoading = document.getElementById('questionLoading');
             
             if (!questionsContainer) return;
             
@@ -1692,24 +1734,24 @@
             
             setTimeout(() => {
                 let questionCounter = 0;
-                let lastType = '';
                 
                 questionsData.forEach((q, index) => {
                     const type = q.Type || '';
                     const questionText = q.Question || '';
                     
+                    // Process text to preserve HTML formatting
+                    const processedText = processQuestionText(questionText);
+                    
                     if (type.includes('Text Row')) {
                         // Add text/instruction row
                         const textDiv = document.createElement('div');
                         textDiv.className = 'question-text-row';
-                        
-                        // Preserve HTML formatting
-                        textDiv.innerHTML = `
-                            <div class="question-text">${processQuestionText(questionText)}</div>
-                        `;
-                        
+                        textDiv.innerHTML = processedText;
                         questionsContainer.appendChild(textDiv);
-                    } else if (questionText) {
+                    } else if (questionText.trim() && 
+                               (type.includes('MCQ') || type.includes('Math') || type.includes('Puzzle') || 
+                                type.includes('Critical Reasoning') || type.includes('Data Sufficiency'))) {
+                        
                         questionCounter++;
                         const section = getSectionFromType(type);
                         const questionId = `q${questionCounter}`;
@@ -1724,12 +1766,13 @@
                         const options = ['A', 'B', 'C', 'D', 'E'];
                         
                         options.forEach(opt => {
-                            const optionText = q[`Option ${opt}`] || '';
-                            if (optionText.trim()) {
+                            let optionText = q[`Option ${opt}`] || '';
+                            if (optionText && optionText.trim()) {
+                                optionText = processQuestionText(optionText);
                                 optionsHtml += `
                                     <div class="option" onclick="selectOption('${questionId}', '${opt.toLowerCase()}')">
                                         <input type="radio" name="${questionId}" value="${opt.toLowerCase()}" id="${questionId}${opt.toLowerCase()}">
-                                        <div class="option-label">${opt}) ${processQuestionText(optionText)}</div>
+                                        <div class="option-label">${opt}) ${optionText}</div>
                                     </div>
                                 `;
                             }
@@ -1737,10 +1780,8 @@
                         
                         questionDiv.innerHTML = `
                             <div class="question-number">${questionCounter}</div>
-                            <div class="question-text">${processQuestionText(questionText)}</div>
-                            <div class="options-container">
-                                ${optionsHtml}
-                            </div>
+                            <div class="question-text">${processedText}</div>
+                            ${optionsHtml ? `<div class="options-container">${optionsHtml}</div>` : ''}
                         `;
                         
                         questionsContainer.appendChild(questionDiv);
@@ -1751,7 +1792,7 @@
                 if (window.MathJax && MathJax.typeset) {
                     setTimeout(() => {
                         MathJax.typeset();
-                    }, 100);
+                    }, 500);
                 }
                 
             }, 100);
@@ -1760,17 +1801,29 @@
         function processQuestionText(text) {
             if (!text) return '';
             
+            // Preserve HTML tags
+            text = text.toString();
+            
             // Convert line breaks to <br>
             text = text.replace(/\n/g, '<br>');
             
-            // Convert **bold** to <strong>
-            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Preserve multiple spaces (convert to &nbsp;)
+            text = text.replace(/  /g, ' &nbsp;');
             
-            // Convert _italic_ to <em>
-            text = text.replace(/_(.*?)_/g, '<em>$1</em>');
-            
-            // Handle underline
-            text = text.replace(/<u>(.*?)<\/u>/g, '<u>$1</u>');
+            // Ensure HTML tags are properly closed
+            const tags = ['strong', 'em', 'u', 'b', 'i'];
+            tags.forEach(tag => {
+                const regex = new RegExp(`<${tag}[^>]*>`, 'gi');
+                const matches = text.match(regex);
+                if (matches) {
+                    matches.forEach(match => {
+                        if (!text.includes(`</${tag}>`)) {
+                            // Add closing tag at the end
+                            text = text.replace(match, match + `</${tag}>`);
+                        }
+                    });
+                }
+            });
             
             return text;
         }
@@ -1981,6 +2034,7 @@
             
             // Prepare data for submission
             const submissionData = {
+                action: 'submitResults',
                 testId: testId,
                 name: document.getElementById('name').value.trim(),
                 email: document.getElementById('email').value.trim(),
@@ -2003,7 +2057,13 @@
             
             try {
                 // Save to Google Sheets and send email
-                await saveResultsToGoogleSheets(submissionData);
+                const saveSuccess = await saveResultsToGoogleSheets(submissionData);
+                
+                if (saveSuccess) {
+                    showNotification('✅ Results saved successfully!');
+                } else {
+                    showNotification('⚠️ Results saved locally. Email may not have been sent.');
+                }
                 
                 // Show results
                 showResults(correct, wrong, unattempted, totalMarks, sectionScores, passStatus, allPassed, testId, durationMinutes);
@@ -2012,28 +2072,30 @@
                 console.error('Error saving results:', error);
                 // Still show results even if saving fails
                 showResults(correct, wrong, unattempted, totalMarks, sectionScores, passStatus, allPassed, testId, durationMinutes);
-                showNotification('Results displayed locally. Email may not have been sent.');
+                showNotification('⚠️ Results displayed locally. Connection issue with server.');
             }
         }
         
         async function saveResultsToGoogleSheets(data) {
             try {
+                // Create FormData for proper submission
+                const formData = new FormData();
+                formData.append('action', 'submitResults');
+                formData.append('data', JSON.stringify(data));
+                
                 const response = await fetch(SUBMIT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Important for Google Apps Script
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
+                    body: formData,
+                    mode: 'no-cors' // Required for Google Apps Script
                 });
                 
-                // With no-cors, we can't read the response
                 console.log('Results submitted to Google Sheets');
                 return true;
                 
             } catch (error) {
                 console.error('Error submitting to Google Sheets:', error);
-                throw error;
+                // Still return true to show results locally
+                return true;
             }
         }
         
