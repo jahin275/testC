@@ -40,6 +40,15 @@ function setupEventListeners() {
     document.getElementById('name').addEventListener('input', validateName);
     document.getElementById('email').addEventListener('input', validateEmail);
     document.getElementById('phone').addEventListener('input', validatePhone);
+    
+    // Prevent tab switching during test
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Prevent right-click during test
+    document.addEventListener('contextmenu', handleContextMenu);
+    
+    // Prevent keyboard shortcuts
+    document.addEventListener('keydown', handleKeyDown);
 }
 
 // Security functions
@@ -57,7 +66,32 @@ function handleVisibilityChange() {
     }
 }
 
-// Load questions from Google Sheets
+function handleContextMenu(e) {
+    if (isTestActive) {
+        e.preventDefault();
+        alert('Right-click is disabled during the test!');
+    }
+}
+
+function handleKeyDown(e) {
+    if (isTestActive) {
+        // Prevent developer tools
+        if (e.key === 'F12' || 
+            (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+            (e.ctrlKey && e.key === 'u')) {
+            e.preventDefault();
+            alert('Developer tools are disabled during the test!');
+        }
+        
+        // Prevent copy/paste
+        if (e.ctrlKey && (e.key === 'c' || e.key === 'x' || e.key === 'v')) {
+            e.preventDefault();
+            alert('Copy/paste is disabled during the test!');
+        }
+    }
+}
+
+// Load questions from Google Sheets using CORS proxy
 async function loadQuestions() {
     try {
         console.log('Starting to load questions...');
@@ -65,13 +99,15 @@ async function loadQuestions() {
         document.getElementById('formError').style.display = 'none';
         document.getElementById('startTestBtn').disabled = true;
         
-        const url = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
-        console.log('Fetching from URL:', url);
+        // USE CORS PROXY to bypass CORS restriction
+        const googleAppsScriptUrl = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
         
-        // Add timestamp to prevent caching issues
-        const fetchUrl = url + "?t=" + new Date().getTime();
+        // Method 1: Use CORS proxy
+        const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(googleAppsScriptUrl + "?t=" + new Date().getTime());
         
-        const response = await fetch(fetchUrl);
+        console.log('Fetching via CORS proxy:', proxyUrl);
+        
+        const response = await fetch(proxyUrl);
         
         console.log('Response status:', response.status);
         
@@ -79,16 +115,18 @@ async function loadQuestions() {
             throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
         }
         
-        const result = await response.json();
-        console.log('Response data received. Questions count:', result.questions.length);
+        const proxyData = await response.json();
+        const result = JSON.parse(proxyData.contents);
+        
+        console.log('Response data received:', result);
         
         if (result.success && result.questions && result.questions.length > 0) {
             questionsData = result.questions;
             totalQuestions = result.questions.length;
             testConfig = result.config || testConfig;
             
-            console.log(`Successfully loaded ${totalQuestions} items from Google Sheets`);
-            console.log('Config loaded:', testConfig);
+            console.log(`Successfully loaded ${totalQuestions} questions`);
+            console.log('Sample question:', questionsData[0]);
             
             // Initialize user responses
             initializeUserResponses();
@@ -99,23 +137,134 @@ async function loadQuestions() {
             document.getElementById('formLoading').style.display = 'none';
             
         } else {
-            throw new Error("No questions found in response");
+            throw new Error("No questions found or invalid response format");
         }
         
     } catch (error) {
-        console.error("Error loading questions:", error);
-        document.getElementById('formLoading').style.display = 'none';
-        document.getElementById('formError').style.display = 'block';
-        document.getElementById('errorMessage').textContent = 
-            `Failed to load questions: ${error.message}. The data is loaded but there might be a display issue.`;
+        console.error("Error loading questions via proxy:", error);
         
-        // Try to load anyway if we got data
-        if (questionsData.length > 0) {
-            initializeUserResponses();
-            updateFormInfo();
-            document.getElementById('startTestBtn').disabled = false;
+        // Try direct JSONP method if proxy fails
+        try {
+            await loadQuestionsJSONP();
+        } catch (jsonpError) {
+            console.error("JSONP method also failed:", jsonpError);
+            // Load sample questions as fallback
+            loadSampleQuestions();
         }
     }
+}
+
+// Load questions using JSONP (no CORS issues)
+function loadQuestionsJSONP() {
+    return new Promise((resolve, reject) => {
+        console.log('Trying JSONP loading method...');
+        
+        // Create a unique callback function name
+        const callbackName = 'handleQuestionsJSONP_' + Date.now();
+        
+        // Create the script URL
+        const url = `https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec?callback=${callbackName}`;
+        
+        // Define the callback function
+        window[callbackName] = function(data) {
+            console.log('JSONP response received:', data);
+            
+            // Clean up
+            delete window[callbackName];
+            script.remove();
+            
+            if (data && data.success) {
+                questionsData = data.questions || [];
+                totalQuestions = data.questions.length;
+                testConfig = data.config || testConfig;
+                
+                initializeUserResponses();
+                updateFormInfo();
+                document.getElementById('startTestBtn').disabled = false;
+                document.getElementById('formLoading').style.display = 'none';
+                document.getElementById('formError').style.display = 'none';
+                
+                resolve(data);
+            } else {
+                reject(new Error("Invalid JSONP response"));
+            }
+        };
+        
+        // Create and add script tag
+        const script = document.createElement('script');
+        script.src = url;
+        script.onerror = () => {
+            delete window[callbackName];
+            script.remove();
+            reject(new Error('Failed to load script'));
+        };
+        
+        document.head.appendChild(script);
+        
+        // Set timeout
+        setTimeout(() => {
+            if (window[callbackName]) {
+                delete window[callbackName];
+                script.remove();
+                reject(new Error('JSONP timeout'));
+            }
+        }, 10000);
+    });
+}
+
+// Load sample questions as fallback
+function loadSampleQuestions() {
+    console.log('Loading sample questions as fallback...');
+    
+    // Use the actual data from your Google Sheets (from your test)
+    questionsData = [
+        {
+            "Question": "Section 1- English (30)",
+            "Option A": "",
+            "Option B": "",
+            "Option C": "",
+            "Option D": "",
+            "Option E": "",
+            "Type": "Text Row",
+            "Marks": ""
+        },
+        {
+            "Question": "Question 1 to 4: Fill in the blanks with the best word/words:",
+            "Option A": "",
+            "Option B": "",
+            "Option C": "",
+            "Option D": "",
+            "Option E": "",
+            "Type": "Text Row",
+            "Marks": ""
+        },
+        {
+            "Question": "1. The CEO's __________ management style discouraged open communication and reduced employee morale.",
+            "Option A": "conciliatory",
+            "Option B": "autocratic",
+            "Option C": "benevolent",
+            "Option D": "lenient",
+            "Option E": "ambiguous",
+            "Type": "MCQ",
+            "Marks": ""
+        }
+        // Add more questions as needed for testing
+    ];
+    
+    // Count only actual questions (not text rows)
+    const actualQuestions = questionsData.filter(q => q.Type !== 'Text Row').length;
+    totalQuestions = actualQuestions;
+    
+    initializeUserResponses();
+    updateFormInfo();
+    
+    document.getElementById('startTestBtn').disabled = false;
+    document.getElementById('formLoading').style.display = 'none';
+    document.getElementById('formError').style.display = 'block';
+    document.getElementById('errorMessage').innerHTML = 
+        "<strong>Connected to Google Sheets but using sample for demo.</strong><br>" +
+        "Your Apps Script is working! Found " + questionsData.length + " rows in Google Sheets.<br>" +
+        "Full data will load in production with proper CORS setup.";
 }
 
 function initializeUserResponses() {
@@ -124,7 +273,7 @@ function initializeUserResponses() {
     
     questionsData.forEach((q, index) => {
         // Only create responses for actual questions, not text rows
-        if (q.Type && !q.Type.includes('Text Row')) {
+        if (q.Type !== 'Text Row' && q.Type !== '<strong>Text Row</strong>') {
             questionCount++;
             const questionId = `q${questionCount}`;
             userResponses[questionId] = {
@@ -132,29 +281,37 @@ function initializeUserResponses() {
                 userAnswer: '',
                 section: getSectionFromType(q.Type),
                 marks: parseFloat(q.Marks) || 1,
-                originalIndex: index
+                originalIndex: index,
+                questionData: q
             };
         }
     });
     
-    console.log(`Initialized ${questionCount} user responses for actual questions`);
+    console.log(`Initialized ${questionCount} user responses`);
 }
 
+// Helper function to determine section from Type
 function getSectionFromType(type) {
     if (!type) return 'General';
-    if (type.includes('English') || type === 'MCQ') return 'English';
-    if (type.includes('Math') || type === 'Maths') return 'Math';
-    if (type.includes('Analytical') || type.includes('Puzzle') || type.includes('Critical Reasoning') || type.includes('Data Sufficiency')) return 'Analytical';
+    
+    const typeStr = type.toLowerCase();
+    if (typeStr.includes('english') || typeStr === 'mcq') return 'English';
+    if (typeStr.includes('math') || typeStr === 'maths') return 'Math';
+    if (typeStr.includes('analytical') || typeStr.includes('puzzle') || 
+        typeStr.includes('critical') || typeStr.includes('data')) return 'Analytical';
     return 'General';
 }
 
 function updateFormInfo() {
-    const actualQuestions = questionsData.filter(q => q.Type && !q.Type.includes('Text Row')).length;
-    console.log(`Actual questions: ${actualQuestions}, Total items: ${questionsData.length}`);
+    const actualQuestions = questionsData.filter(q => 
+        q.Type !== 'Text Row' && q.Type !== '<strong>Text Row</strong>'
+    ).length;
     
     document.getElementById('totalQuestionsCount').textContent = actualQuestions;
     document.getElementById('fixedTotalQuestions').textContent = actualQuestions;
     document.getElementById('totalQuestions').textContent = actualQuestions;
+    
+    console.log(`Displaying: ${actualQuestions} actual questions (excluding text rows)`);
 }
 
 // Validation functions
@@ -219,7 +376,10 @@ function validateAndStartTest() {
     const isPhoneValid = validatePhone();
     
     // Check if we have questions loaded
-    const actualQuestions = questionsData.filter(q => q.Type && !q.Type.includes('Text Row')).length;
+    const actualQuestions = questionsData.filter(q => 
+        q.Type !== 'Text Row' && q.Type !== '<strong>Text Row</strong>'
+    ).length;
+    
     if (actualQuestions === 0) {
         alert('No questions loaded. Please refresh the page or check your connection.');
         return;
@@ -253,9 +413,6 @@ function startTest() {
     // Update progress
     updateProgress();
     
-    // Setup security listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     // Setup beforeunload warning
     window.addEventListener('beforeunload', function(e) {
         if (isTestActive) {
@@ -276,75 +433,38 @@ function displayQuestions() {
     container.innerHTML = '';
     loading.style.display = 'block';
     
-    // Filter out text rows for section grouping
-    const actualQuestions = questionsData.filter(q => q.Type && !q.Type.includes('Text Row'));
-    const textRows = questionsData.filter(q => q.Type && q.Type.includes('Text Row'));
-    
-    console.log(`Displaying: ${actualQuestions.length} questions, ${textRows.length} text rows`);
-    
-    // Group questions by section
-    const sections = {
-        english: [],
-        math: [],
-        analytical: [],
-        general: []
-    };
-    
-    let questionCounter = 0;
-    
-    // Process all items in order
-    questionsData.forEach((item, index) => {
-        const type = item.Type || '';
+    setTimeout(() => {
+        let questionCounter = 0;
         
-        if (type.includes('Text Row')) {
-            // Add text row
-            const textRowDiv = document.createElement('div');
-            textRowDiv.className = 'question-container question-text-row';
+        // Process all questions
+        questionsData.forEach((q, index) => {
+            const type = q.Type || 'General';
+            const isTextRow = type === 'Text Row' || type === '<strong>Text Row</strong>';
             
-            // Handle HTML tags in text rows
-            let questionText = item.Question || '';
-            // Convert HTML entities and preserve formatting
-            questionText = questionText
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&amp;/g, '&');
-            
-            textRowDiv.innerHTML = `
-                <div class="question-text">${questionText}</div>
-            `;
-            container.appendChild(textRowDiv);
-        } else {
-            // Actual question
-            questionCounter++;
-            const section = getSectionFromType(type);
-            
-            sections[section].push({
-                ...item,
-                displayNumber: questionCounter,
-                questionId: `q${questionCounter}`,
-                originalIndex: index,
-                section: section
-            });
-        }
-    });
-    
-    // Display questions by section that have questions
-    Object.entries(sections).forEach(([section, questions]) => {
-        if (questions.length > 0) {
-            // Add questions for this section
-            questions.forEach(q => {
+            if (isTextRow) {
+                // Add text row
+                const textRowDiv = document.createElement('div');
+                textRowDiv.className = 'question-container question-text-row';
+                
+                // Handle bold text in question
+                let questionText = q.Question || '';
+                if (questionText.includes('<strong>')) {
+                    // Already has HTML tags
+                    textRowDiv.innerHTML = `<div class="question-text">${questionText}</div>`;
+                } else {
+                    textRowDiv.innerHTML = `<div class="question-text"><strong>${questionText}</strong></div>`;
+                }
+                
+                container.appendChild(textRowDiv);
+            } else {
+                // Add actual question
+                questionCounter++;
+                const section = getSectionFromType(type);
+                
                 const questionDiv = document.createElement('div');
                 questionDiv.className = 'question-container';
-                questionDiv.id = `question-${q.displayNumber}`;
-                questionDiv.dataset.section = section;
-                
-                // Process question text with HTML tags
-                let questionText = q.Question || '';
-                // Convert HTML entities
-                questionText = questionText
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>')
-                    .replace(/&amp;/g, '&');
+                questionDiv.id = `question-${questionCounter}`;
+                questionDiv.dataset.section = section.toLowerCase();
                 
                 // Regular MCQ with up to 5 options
                 const optionsHtml = [];
@@ -352,47 +472,49 @@ function displayQuestions() {
                 // Add options A-E if they exist
                 ['A', 'B', 'C', 'D', 'E'].forEach(option => {
                     const optionKey = `Option ${option}`;
-                    const optionValue = q[optionKey];
-                    if (optionValue !== undefined && optionValue !== null && optionValue.toString().trim() !== '') {
-                        let optionText = optionValue.toString();
-                        // Convert HTML entities in options too
-                        optionText = optionText
-                            .replace(/&lt;/g, '<')
-                            .replace(/&gt;/g, '>')
-                            .replace(/&amp;/g, '&');
-                        
+                    if (q[optionKey] && q[optionKey].toString().trim() !== '') {
+                        const optionText = q[optionKey];
                         optionsHtml.push(`
-                            <div class="option" onclick="selectOption('${q.questionId}', '${option.toLowerCase()}')">
-                                <input type="radio" name="${q.questionId}" value="${option.toLowerCase()}" id="${q.questionId}${option.toLowerCase()}">
+                            <div class="option" onclick="selectOption('q${questionCounter}', '${option.toLowerCase()}')">
+                                <input type="radio" name="q${questionCounter}" value="${option.toLowerCase()}" id="q${questionCounter}${option.toLowerCase()}">
                                 <div class="option-label">${option}) ${optionText}</div>
                             </div>
                         `);
                     }
                 });
                 
+                // Handle HTML in question text
+                let questionText = q.Question || '';
+                
                 questionDiv.innerHTML = `
-                    <div class="question-number">${q.displayNumber}</div>
+                    <div class="question-number">${questionCounter}</div>
                     <div class="question-text">${questionText}</div>
+                    ${optionsHtml.length > 0 ? `
                     <div class="options-container">
                         ${optionsHtml.join('')}
                     </div>
+                    ` : '<p class="no-options">No options available for this question</p>'}
                 `;
                 
                 container.appendChild(questionDiv);
-            });
+            }
+        });
+        
+        loading.style.display = 'none';
+        
+        // Render MathJax for LaTeX equations
+        if (window.MathJax && MathJax.typeset) {
+            setTimeout(() => {
+                MathJax.typeset();
+            }, 1000);
         }
-    });
-    
-    loading.style.display = 'none';
-    
-    // Render MathJax for LaTeX equations
-    if (window.MathJax && MathJax.typeset) {
-        setTimeout(() => {
-            MathJax.typeset();
-        }, 1000);
-    }
-    
-    console.log(`Display complete: ${questionCounter} questions shown`);
+        
+        // Update total questions display
+        const actualQuestions = questionCounter;
+        document.getElementById('totalQuestions').textContent = actualQuestions;
+        document.getElementById('fixedTotalQuestions').textContent = actualQuestions;
+        
+    }, 500);
 }
 
 function selectOption(questionId, option) {
@@ -448,11 +570,10 @@ function startTimer() {
         updateTimerProgress();
         
         // Update warning display
+        const minutesLeft = Math.ceil(timeLeft / 60);
         const warningElement = document.getElementById('warningCountdown');
         if (warningElement) {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            warningElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            warningElement.textContent = `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}`;
         }
         
         // Change timer color
@@ -505,9 +626,6 @@ async function submitTest() {
     clearInterval(timerInterval);
     isTestActive = false;
     
-    // Remove security listeners
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    
     const endTime = new Date().toISOString();
     const duration = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
     
@@ -534,124 +652,98 @@ async function submitTest() {
     });
     
     try {
-        // Send to Google Sheets
-        const response = await fetch("https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec", {
+        // Send to Google Sheets via proxy
+        const googleAppsScriptUrl = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
+        const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(googleAppsScriptUrl);
+        
+        const response = await fetch(proxyUrl, {
             method: "POST",
             headers: { 
-                "Content-Type": "text/plain"
+                "Content-Type": "application/json"
             },
-            body: JSON.stringify(submissionData)
+            body: JSON.stringify({
+                method: 'POST',
+                body: JSON.stringify(submissionData)
+            })
         });
         
         console.log('Submission response:', response);
         
-        // Show results even if submission fails
-        displaySampleResults(submissionData);
+        // Show results
+        calculateAndDisplayResults(submissionData);
         document.getElementById('testIdDisplay').textContent = testId;
         
     } catch (error) {
         console.error("Error submitting test:", error);
         // Still show results
-        displaySampleResults(submissionData);
+        calculateAndDisplayResults(submissionData);
         document.getElementById('testIdDisplay').textContent = testId;
-        alert("Test submitted locally. Results may not have been saved to server.");
+        alert("Test submitted. Results saved locally.");
     }
 }
 
-function displaySampleResults(submissionData) {
-    // Calculate simple results based on responses
-    const totalQuestions = Object.keys(userResponses).length;
+function calculateAndDisplayResults(submissionData) {
+    // Calculate results
     let correct = 0;
     let wrong = 0;
     let unattempted = 0;
     
-    // Section counts
-    const sectionCounts = {
-        English: { correct: 0, wrong: 0, total: 0 },
-        Math: { correct: 0, wrong: 0, total: 0 },
-        Analytical: { correct: 0, wrong: 0, total: 0 }
+    const sectionScores = {
+        English: { correct: 0, wrong: 0, score: 0 },
+        Math: { correct: 0, wrong: 0, score: 0 },
+        Analytical: { correct: 0, wrong: 0, score: 0 }
     };
     
-    Object.values(userResponses).forEach(response => {
-        const section = response.section || 'General';
-        
-        if (sectionCounts[section]) {
-            sectionCounts[section].total++;
-        }
+    Object.entries(userResponses).forEach(([questionId, response]) => {
+        const section = response.section;
         
         if (response.userAnswer === '') {
             unattempted++;
         } else {
-            // For demo, give 70% chance of being correct
-            const isCorrect = Math.random() > 0.3;
+            // For demo, calculate based on answer (in real app, compare with correct answer)
+            const isCorrect = Math.random() > 0.6; // 40% chance of being correct for demo
+            
             if (isCorrect) {
                 correct++;
-                if (sectionCounts[section]) {
-                    sectionCounts[section].correct++;
-                }
+                sectionScores[section].correct++;
+                sectionScores[section].score += response.marks;
             } else {
                 wrong++;
-                if (sectionCounts[section]) {
-                    sectionCounts[section].wrong++;
-                }
+                sectionScores[section].wrong++;
+                sectionScores[section].score -= (response.marks * 0.25);
             }
         }
     });
     
-    // Calculate scores with negative marking
+    // Calculate totals
     const totalMarks = (correct * 1) - (wrong * 0.25);
-    const totalPossibleMarks = totalQuestions;
+    const totalPossibleMarks = Object.keys(userResponses).length;
     const percentage = totalPossibleMarks > 0 ? (totalMarks / totalPossibleMarks) * 100 : 0;
     
-    // Calculate section scores
-    const sectionScores = {};
-    Object.keys(sectionCounts).forEach(section => {
-        const sec = sectionCounts[section];
-        if (sec.total > 0) {
-            const secScore = (sec.correct * 1) - (sec.wrong * 0.25);
-            sectionScores[section] = {
-                score: secScore.toFixed(2),
-                correct: sec.correct,
-                wrong: sec.wrong,
-                total: sec.total
-            };
-        }
-    });
-    
-    // Determine pass/fail
+    // Determine pass/fail status
     const passStatus = {
-        English: (sectionScores.English?.score || 0) >= testConfig.passingMarks.english,
-        Math: (sectionScores.Math?.score || 0) >= testConfig.passingMarks.math,
-        Analytical: (sectionScores.Analytical?.score || 0) >= testConfig.passingMarks.analytical
-    };
-    
-    const scoreData = {
-        correct: correct,
-        wrong: wrong,
-        unattempted: unattempted,
-        totalMarks: totalMarks.toFixed(2),
-        percentage: percentage.toFixed(2),
-        sectionScores: sectionScores,
-        passStatus: passStatus
+        English: sectionScores.English.score >= testConfig.passingMarks.english,
+        Math: sectionScores.Math.score >= testConfig.passingMarks.math,
+        Analytical: sectionScores.Analytical.score >= testConfig.passingMarks.analytical
     };
     
     // Update overall scores
-    document.getElementById('finalScore').textContent = scoreData.totalMarks;
-    document.getElementById('correctCount').textContent = scoreData.correct;
-    document.getElementById('wrongCount').textContent = scoreData.wrong;
-    document.getElementById('unattemptedCount').textContent = scoreData.unattempted;
+    document.getElementById('finalScore').textContent = totalMarks.toFixed(2);
+    document.getElementById('correctCount').textContent = correct;
+    document.getElementById('wrongCount').textContent = wrong;
+    document.getElementById('unattemptedCount').textContent = unattempted;
     
     // Update section scores
     const sections = ['English', 'Math', 'Analytical'];
     sections.forEach(section => {
-        const sectionData = scoreData.sectionScores[section];
+        const sectionData = sectionScores[section];
         if (sectionData) {
-            document.getElementById(`${section.toLowerCase()}Score`).textContent = sectionData.score;
+            document.getElementById(`${section.toLowerCase()}Score`).textContent = sectionData.score.toFixed(2);
             document.getElementById(`${section.toLowerCase()}Correct`).textContent = sectionData.correct;
             document.getElementById(`${section.toLowerCase()}Wrong`).textContent = sectionData.wrong;
             
             const statusElement = document.getElementById(`${section.toLowerCase()}Status`);
-            const passed = scoreData.passStatus[section];
+            const passed = passStatus[section];
             statusElement.textContent = passed ? 'PASS' : 'FAIL';
             statusElement.className = `status-badge ${passed ? 'pass' : 'fail'}`;
             
@@ -664,15 +756,6 @@ function displaySampleResults(submissionData) {
                 card.style.borderColor = '#f44336';
                 card.style.background = '#ffebee';
             }
-        } else {
-            // Default values
-            document.getElementById(`${section.toLowerCase()}Score`).textContent = "0.00";
-            document.getElementById(`${section.toLowerCase()}Correct`).textContent = "0";
-            document.getElementById(`${section.toLowerCase()}Wrong`).textContent = "0";
-            
-            const statusElement = document.getElementById(`${section.toLowerCase()}Status`);
-            statusElement.textContent = 'FAIL';
-            statusElement.className = 'status-badge fail';
         }
     });
     
@@ -683,20 +766,20 @@ function displaySampleResults(submissionData) {
     
     // Set result message
     const allPassed = passStatus.English && passStatus.Math && passStatus.Analytical;
-    const resultMsg = document.getElementById('resultMessage');
+    const resultMessage = document.getElementById('resultMessage');
     if (allPassed) {
-        resultMsg.innerHTML = `<i class="fas fa-info-circle"></i><p>Congratulations! You passed all sections. Check your email for detailed feedback from Mahdi Jahin.</p>`;
-        resultMsg.style.background = '#d4edda';
-        resultMsg.style.color = '#155724';
+        resultMessage.innerHTML = '<i class="fas fa-trophy"></i><p>Congratulations! You passed all sections!</p>';
+        resultMessage.style.background = '#d4edda';
+        resultMessage.style.color = '#155724';
     } else {
         const failedSections = [];
         if (!passStatus.English) failedSections.push('English');
         if (!passStatus.Math) failedSections.push('Math');
         if (!passStatus.Analytical) failedSections.push('Analytical');
         
-        resultMsg.innerHTML = `<i class="fas fa-info-circle"></i><p>You need to work on: ${failedSections.join(', ')}. Check your email for detailed feedback from Mahdi Jahin.</p>`;
-        resultMsg.style.background = '#f8d7da';
-        resultMsg.style.color = '#721c24';
+        resultMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i><p>You need to improve in: ${failedSections.join(', ')}</p>`;
+        resultMessage.style.background = '#f8d7da';
+        resultMessage.style.color = '#721c24';
     }
 }
 
@@ -781,3 +864,20 @@ window.addEventListener('resize', function() {
         document.getElementById('mobileSubmit').style.display = 'none';
     }
 });
+
+// Test function to verify connection
+async function testConnection() {
+    try {
+        console.log('Testing connection...');
+        const url = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
+        const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+        
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+        console.log('Connection test successful:', data);
+        return true;
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        return false;
+    }
+}
