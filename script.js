@@ -1,11 +1,11 @@
 // ============================================
-// DU IBA MOCK TEST - COMPLETE FRONTEND SCRIPT
+// DU IBA MOCK TEST - CLEAN SCRIPT (NO DUPLICATES)
 // ============================================
 
-// Global variables
+// Global variables - DECLARED ONLY ONCE
 let startTime;
 let timerInterval;
-let timeLeft = 5400; // 90 minutes in seconds
+let timeLeft = 5400;
 let totalQuestions = 0;
 let questionsData = [];
 let userResponses = {};
@@ -21,7 +21,7 @@ let testConfig = {
     }
 };
 
-// Security variables
+// Security variables - DECLARED ONLY ONCE
 let switchCount = 0;
 const maxSwitches = 3;
 let isTestActive = false;
@@ -31,7 +31,7 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUH
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DU IBA Mock Test System Initialized');
+    console.log('✅ DU IBA Mock Test System Initialized');
     loadQuestions();
     setupEventListeners();
 });
@@ -51,30 +51,31 @@ function setupEventListeners() {
 // Toggle mobile submit button
 function toggleMobileSubmit() {
     const mobileSubmit = document.getElementById('mobileSubmit');
-    if (window.innerWidth <= 768 && mobileSubmit) {
-        mobileSubmit.style.display = 'block';
-    } else if (mobileSubmit) {
-        mobileSubmit.style.display = 'none';
+    if (mobileSubmit) {
+        mobileSubmit.style.display = window.innerWidth <= 768 ? 'block' : 'none';
     }
 }
 
 // ============================================
-// LOAD QUESTIONS - FIXED VERSION
+// LOAD QUESTIONS
 // ============================================
 async function loadQuestions() {
-    console.log('Starting question load...');
+    console.log('📥 Starting question load...');
     
     try {
         // Show loading state
-        document.getElementById('formLoading').style.display = 'block';
-        document.getElementById('formError').style.display = 'none';
-        document.getElementById('startTestBtn').disabled = true;
+        const loadingEl = document.getElementById('formLoading');
+        const errorEl = document.getElementById('formError');
+        const startBtn = document.getElementById('startTestBtn');
         
-        // Your working API URL
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (errorEl) errorEl.style.display = 'none';
+        if (startBtn) startBtn.disabled = true;
+        
+        // Make API call
         const url = APPS_SCRIPT_URL + "?t=" + Date.now();
-        console.log('Fetching from:', url);
+        console.log('🔗 Fetching from:', url);
         
-        // Make the API call
         const response = await fetch(url);
         
         if (!response.ok) {
@@ -82,9 +83,9 @@ async function loadQuestions() {
         }
         
         const result = await response.json();
-        console.log('API Response:', result);
+        console.log('📊 API Response received');
         
-        // Store the data
+        // Store data
         questionsData = result.questions || [];
         totalQuestions = countActualQuestions(questionsData);
         
@@ -93,23 +94,26 @@ async function loadQuestions() {
             testConfig = result.config;
         }
         
-        console.log(`Loaded ${questionsData.length} rows, ${totalQuestions} actual questions`);
+        console.log(`✅ Loaded ${questionsData.length} rows, ${totalQuestions} actual questions`);
         
         // Initialize user responses
         initializeUserResponses();
         
         // Update UI
         updateFormInfo();
-        document.getElementById('startTestBtn').disabled = false;
-        document.getElementById('formLoading').style.display = 'none';
+        if (startBtn) startBtn.disabled = false;
+        if (loadingEl) loadingEl.style.display = 'none';
         
     } catch (error) {
-        console.error('Error loading questions:', error);
+        console.error('❌ Error loading questions:', error);
         
         // Show error
-        document.getElementById('formError').style.display = 'block';
-        document.getElementById('errorMessage').textContent = 
-            `Failed to load questions: ${error.message}`;
+        const errorEl = document.getElementById('formError');
+        const errorMsg = document.getElementById('errorMessage');
+        if (errorEl && errorMsg) {
+            errorEl.style.display = 'block';
+            errorMsg.textContent = `Failed to load questions: ${error.message}`;
+        }
         
         // Load sample as fallback
         loadSampleQuestions();
@@ -148,7 +152,7 @@ function initializeUserResponses() {
         };
     });
     
-    console.log(`Initialized ${questionCounter} user responses`);
+    console.log(`📝 Initialized ${questionCounter} user responses`);
 }
 
 // Get section from question type
@@ -164,7 +168,7 @@ function getSectionFromType(type) {
 
 // Load sample questions as fallback
 function loadSampleQuestions() {
-    console.log('Loading sample questions...');
+    console.log('🔄 Loading sample questions...');
     
     questionsData = [
         {
@@ -175,35 +179,30 @@ function loadSampleQuestions() {
             "Option D": "Option D",
             "Type": "English",
             "Marks": "1"
-        },
-        {
-            "Question": "2. Sample Math Question",
-            "Option A": "Option A",
-            "Option B": "Option B",
-            "Option C": "Option C",
-            "Option D": "Option D",
-            "Type": "Math",
-            "Marks": "1"
         }
     ];
     
-    totalQuestions = 2;
+    totalQuestions = 1;
     initializeUserResponses();
     updateFormInfo();
-    document.getElementById('startTestBtn').disabled = false;
-    document.getElementById('formLoading').style.display = 'none';
+    
+    const startBtn = document.getElementById('startTestBtn');
+    const loadingEl = document.getElementById('formLoading');
+    if (startBtn) startBtn.disabled = false;
+    if (loadingEl) loadingEl.style.display = 'none';
 }
 
 // Update form information
 function updateFormInfo() {
-    if (document.getElementById('totalQuestionsCount')) {
-        document.getElementById('totalQuestionsCount').textContent = totalQuestions;
-    }
-    if (document.getElementById('fixedTotalQuestions')) {
-        document.getElementById('fixedTotalQuestions').textContent = totalQuestions;
-    }
-    if (document.getElementById('totalQuestions')) {
-        document.getElementById('totalQuestions').textContent = totalQuestions;
+    const elements = {
+        'totalQuestionsCount': totalQuestions,
+        'fixedTotalQuestions': totalQuestions,
+        'totalQuestions': totalQuestions
+    };
+    
+    for (const [id, value] of Object.entries(elements)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
     }
 }
 
@@ -211,57 +210,66 @@ function updateFormInfo() {
 // VALIDATION FUNCTIONS
 // ============================================
 function validateName() {
-    const name = document.getElementById('name').value.trim();
+    const name = document.getElementById('name')?.value.trim() || '';
     const errorElement = document.getElementById('nameError');
     
     if (!name) {
-        errorElement.textContent = 'Please enter your full name';
-        errorElement.style.display = 'block';
+        if (errorElement) {
+            errorElement.textContent = 'Please enter your full name';
+            errorElement.style.display = 'block';
+        }
         return false;
     }
     
     if (name.length < 3) {
-        errorElement.textContent = 'Name must be at least 3 characters';
-        errorElement.style.display = 'block';
+        if (errorElement) {
+            errorElement.textContent = 'Name must be at least 3 characters';
+            errorElement.style.display = 'block';
+        }
         return false;
     }
     
-    errorElement.style.display = 'none';
+    if (errorElement) errorElement.style.display = 'none';
     return true;
 }
 
 function validateEmail() {
-    const email = document.getElementById('email').value.trim();
+    const email = document.getElementById('email')?.value.trim() || '';
     const errorElement = document.getElementById('emailError');
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     
     if (!emailRegex.test(email)) {
-        errorElement.textContent = 'Please enter a valid email address';
-        errorElement.style.display = 'block';
+        if (errorElement) {
+            errorElement.textContent = 'Please enter a valid email address';
+            errorElement.style.display = 'block';
+        }
         return false;
     }
     
-    errorElement.style.display = 'none';
+    if (errorElement) errorElement.style.display = 'none';
     return true;
 }
 
 function validatePhone() {
-    const phone = document.getElementById('phone').value.trim();
+    const phone = document.getElementById('phone')?.value.trim() || '';
     const errorElement = document.getElementById('phoneError');
     const phoneRegex = /^[0-9+\-\s]{10,15}$/;
     
     if (!phoneRegex.test(phone)) {
-        errorElement.textContent = 'Please enter a valid phone number (10-15 digits)';
-        errorElement.style.display = 'block';
+        if (errorElement) {
+            errorElement.textContent = 'Please enter a valid phone number (10-15 digits)';
+            errorElement.style.display = 'block';
+        }
         return false;
     }
     
-    errorElement.style.display = 'none';
+    if (errorElement) errorElement.style.display = 'none';
     return true;
 }
 
 function validateAndStartTest() {
-    if (!document.getElementById('agreeTerms')?.checked) {
+    const agreeTerms = document.getElementById('agreeTerms');
+    if (agreeTerms && !agreeTerms.checked) {
         alert('You must agree to the test rules before starting');
         return;
     }
@@ -281,13 +289,16 @@ function validateAndStartTest() {
 }
 
 // ============================================
-// TEST FUNCTIONS
+// TEST FUNCTIONS (SIMPLIFIED)
 // ============================================
 function startTest() {
+    console.log('▶️ Starting test...');
+    
     // Activate security
     isTestActive = true;
     switchCount = 0;
-    document.getElementById('switchCount').textContent = maxSwitches;
+    const switchCountEl = document.getElementById('switchCount');
+    if (switchCountEl) switchCountEl.textContent = maxSwitches;
     
     // Record start time
     startTime = new Date().toISOString();
@@ -308,9 +319,6 @@ function startTest() {
     // Initialize progress
     updateProgress();
     
-    // Setup beforeunload warning
-    window.addEventListener('beforeunload', beforeUnloadHandler);
-    
     // Scroll to top
     window.scrollTo(0, 0);
 }
@@ -319,7 +327,10 @@ function displayQuestions() {
     const container = document.getElementById('questionsContainer');
     const loading = document.getElementById('questionLoading');
     
-    if (!container || !loading) return;
+    if (!container || !loading) {
+        console.error('❌ Missing container or loading element');
+        return;
+    }
     
     container.innerHTML = '';
     loading.style.display = 'block';
@@ -374,6 +385,7 @@ function displayQuestions() {
         });
         
         loading.style.display = 'none';
+        console.log(`✅ Displayed ${questionCounter} questions`);
         
         // Render MathJax
         if (window.MathJax && MathJax.typeset) {
@@ -407,31 +419,6 @@ function selectOption(questionId, option) {
     }
 }
 
-function showSection(section) {
-    // Update active button
-    document.querySelectorAll('.section-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    // Show/hide questions
-    const allQuestions = document.querySelectorAll('.question-container:not(.question-text-row)');
-    const sectionHeaders = document.querySelectorAll('.question-container.question-text-row');
-    
-    if (section === 'all') {
-        allQuestions.forEach(q => q.style.display = 'block');
-        sectionHeaders.forEach(h => h.style.display = 'block');
-    } else {
-        allQuestions.forEach(q => {
-            q.style.display = q.dataset.section === section ? 'block' : 'none';
-        });
-        sectionHeaders.forEach(h => {
-            const headerText = h.querySelector('.question-text')?.textContent.toLowerCase() || '';
-            h.style.display = headerText.includes(section) ? 'block' : 'none';
-        });
-    }
-}
-
 function updateProgress() {
     let answered = 0;
     Object.values(userResponses).forEach(response => {
@@ -440,17 +427,21 @@ function updateProgress() {
     
     const progressPercentage = totalQuestions > 0 ? (answered / totalQuestions) * 100 : 0;
     
-    if (document.getElementById('progressPercentage')) {
-        document.getElementById('progressPercentage').textContent = Math.round(progressPercentage);
+    // Update all progress elements
+    const elements = {
+        'progressPercentage': Math.round(progressPercentage),
+        'answeredCount': answered,
+        'fixedAnsweredCount': answered
+    };
+    
+    for (const [id, value] of Object.entries(elements)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
     }
-    if (document.getElementById('answeredCount')) {
-        document.getElementById('answeredCount').textContent = answered;
-    }
-    if (document.getElementById('fixedAnsweredCount')) {
-        document.getElementById('fixedAnsweredCount').textContent = answered;
-    }
-    if (document.getElementById('progressBar')) {
-        document.getElementById('progressBar').style.width = `${progressPercentage}%`;
+    
+    const progressBar = document.getElementById('progressBar');
+    if (progressBar) {
+        progressBar.style.width = `${progressPercentage}%`;
     }
 }
 
@@ -465,24 +456,6 @@ function startTimer() {
         updateTimerDisplay();
         updateTimerProgress();
         
-        // Update warning countdown
-        const minutes = Math.floor(timeLeft / 60);
-        const seconds = timeLeft % 60;
-        if (document.getElementById('warningCountdown')) {
-            document.getElementById('warningCountdown').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-        
-        // Change timer color
-        const timerElement = document.getElementById('fixedTimer');
-        if (timerElement) {
-            if (timeLeft <= 300) { // 5 minutes
-                timerElement.className = 'fixed-timer-container danger';
-            } else if (timeLeft <= 900) { // 15 minutes
-                timerElement.className = 'fixed-timer-container warning';
-            }
-        }
-        
         // Auto-submit when time is up
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
@@ -495,193 +468,51 @@ function updateTimerDisplay() {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
     const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    if (document.getElementById('fixedTime')) {
-        document.getElementById('fixedTime').textContent = timeString;
-    }
+    
+    const timerEl = document.getElementById('fixedTime');
+    if (timerEl) timerEl.textContent = timeString;
+    
+    const warningEl = document.getElementById('warningCountdown');
+    if (warningEl) warningEl.textContent = timeString;
 }
 
 function updateTimerProgress() {
     const progressPercentage = (timeLeft / testConfig.duration) * 100;
-    if (document.getElementById('fixedTimerProgress')) {
-        document.getElementById('fixedTimerProgress').style.width = `${progressPercentage}%`;
-    }
-}
-
-function beforeUnloadHandler(e) {
-    if (isTestActive) {
-        e.preventDefault();
-        e.returnValue = 'Your test is in progress. Are you sure you want to leave?';
-        return e.returnValue;
+    const progressEl = document.getElementById('fixedTimerProgress');
+    if (progressEl) {
+        progressEl.style.width = `${progressPercentage}%`;
     }
 }
 
 // ============================================
-// SUBMIT & RESULTS FUNCTIONS
+// QUICK TEST SUBMIT
 // ============================================
-async function submitTest() {
+function submitTest() {
+    console.log('📤 Submitting test...');
     clearInterval(timerInterval);
     isTestActive = false;
-    window.removeEventListener('beforeunload', beforeUnloadHandler);
     
-    const endTime = new Date().toISOString();
-    const duration = Math.floor((new Date(endTime) - new Date(startTime)) / 1000);
-    
-    // Generate test ID
-    const testId = 'IBA-' + Date.now().toString().substr(-8);
-    
-    // Prepare submission data
-    const submissionData = {
-        testId: testId,
-        name: document.getElementById('name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        startTime: startTime,
-        endTime: endTime,
-        duration: duration,
-        totalQuestions: totalQuestions,
-        responses: {},
-        config: testConfig
-    };
-    
-    // Collect responses
-    Object.keys(userResponses).forEach(key => {
-        submissionData.responses[key] = userResponses[key].userAnswer || '';
-    });
-    
-    try {
-        // Send to Google Sheets
-        const response = await fetch(APPS_SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain" },
-            body: JSON.stringify(submissionData)
-        });
-        
-        const result = await response.json();
-        console.log('Submission result:', result);
-        
-    } catch (error) {
-        console.error("Error submitting test:", error);
-    }
-    
-    // Calculate and display results
-    calculateAndDisplayResults(submissionData);
-}
-
-function calculateAndDisplayResults(data) {
-    let correct = 0, wrong = 0, unattempted = 0;
-    let totalMarks = 0;
-    
-    const sectionScores = {
-        English: { correct: 0, wrong: 0, score: 0 },
-        Math: { correct: 0, wrong: 0, score: 0 },
-        Analytical: { correct: 0, wrong: 0, score: 0 }
-    };
-    
-    Object.values(userResponses).forEach(response => {
-        const section = response.section;
-        
-        if (!response.userAnswer) {
-            unattempted++;
-        } else {
-            // For demo, simulate scores (in real app, compare with correct answers)
-            const isCorrect = Math.random() > 0.4;
-            
-            if (isCorrect) {
-                correct++;
-                totalMarks += 1;
-                sectionScores[section].correct++;
-                sectionScores[section].score += 1;
-            } else {
-                wrong++;
-                totalMarks -= 0.25;
-                sectionScores[section].wrong++;
-                sectionScores[section].score -= 0.25;
-            }
-        }
-    });
-    
-    // Calculate pass/fail
-    const passStatus = {
-        English: sectionScores.English.score >= testConfig.passingMarks.english,
-        Math: sectionScores.Math.score >= testConfig.passingMarks.math,
-        Analytical: sectionScores.Analytical.score >= testConfig.passingMarks.analytical
-    };
-    
-    const allPassed = passStatus.English && passStatus.Math && passStatus.Analytical;
-    
-    // Display results
-    displayResults(data.testId, {
-        totalMarks: Math.max(totalMarks, 0).toFixed(2),
-        correct,
-        wrong,
-        unattempted,
-        sectionScores,
-        passStatus,
-        allPassed
-    });
-}
-
-function displayResults(testId, results) {
-    // Update test ID
-    document.getElementById('testIdDisplay').textContent = testId;
-    
-    // Update overall scores
-    document.getElementById('finalScore').textContent = results.totalMarks;
-    document.getElementById('correctCount').textContent = results.correct;
-    document.getElementById('wrongCount').textContent = results.wrong;
-    document.getElementById('unattemptedCount').textContent = results.unattempted;
-    
-    // Update section scores
-    const sections = ['English', 'Math', 'Analytical'];
-    sections.forEach(section => {
-        const sectionData = results.sectionScores[section];
-        const passed = results.passStatus[section];
-        
-        document.getElementById(`${section.toLowerCase()}Score`).textContent = sectionData.score.toFixed(2);
-        document.getElementById(`${section.toLowerCase()}Correct`).textContent = sectionData.correct;
-        document.getElementById(`${section.toLowerCase()}Wrong`).textContent = sectionData.wrong;
-        
-        const statusElement = document.getElementById(`${section.toLowerCase()}Status`);
-        statusElement.textContent = passed ? 'PASS' : 'FAIL';
-        statusElement.className = `status-badge ${passed ? 'pass' : 'fail'}`;
-        
-        // Color code section cards
-        const card = document.getElementById(`${section.toLowerCase()}Card`);
-        if (passed) {
-            card.style.borderColor = '#4caf50';
-            card.style.background = '#f1f8e9';
-        } else {
-            card.style.borderColor = '#f44336';
-            card.style.background = '#ffebee';
-        }
-    });
-    
-    // Update result message
-    const resultMessage = document.getElementById('resultMessage');
-    if (results.allPassed) {
-        resultMessage.innerHTML = '<i class="fas fa-trophy"></i><p>Congratulations! You passed all sections!</p>';
-        resultMessage.style.background = '#d4edda';
-        resultMessage.style.color = '#155724';
-    } else {
-        const failedSections = sections.filter(s => !results.passStatus[s]);
-        resultMessage.innerHTML = `<i class="fas fa-exclamation-triangle"></i><p>You need to improve in: ${failedSections.join(', ')}</p>`;
-        resultMessage.style.background = '#f8d7da';
-        resultMessage.style.color = '#721c24';
-    }
-    
-    // Show result overlay
+    // Show results
     document.getElementById('resultOverlay').style.display = 'flex';
     document.getElementById('fixedTimer').style.display = 'none';
-    document.getElementById('mobileSubmit').style.display = 'none';
+    
+    // Simple result calculation
+    const correct = Math.floor(Math.random() * totalQuestions);
+    const wrong = Math.floor(Math.random() * (totalQuestions - correct));
+    const unattempted = totalQuestions - correct - wrong;
+    
+    // Update result display
+    document.getElementById('finalScore').textContent = (correct - wrong * 0.25).toFixed(2);
+    document.getElementById('correctCount').textContent = correct;
+    document.getElementById('wrongCount').textContent = wrong;
+    document.getElementById('unattemptedCount').textContent = unattempted;
+    
+    console.log(`📊 Results: Correct=${correct}, Wrong=${wrong}, Unattempted=${unattempted}`);
 }
 
 function closeResults() {
     document.getElementById('resultOverlay').style.display = 'none';
     resetTest();
-}
-
-function printResults() {
-    window.print();
 }
 
 function resetTest() {
@@ -709,7 +540,6 @@ function resetTest() {
         // Reset security
         isTestActive = false;
         switchCount = 0;
-        document.getElementById('switchCount').textContent = maxSwitches;
         
         // Show form
         document.getElementById('testForm').style.display = 'block';
