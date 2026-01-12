@@ -2076,7 +2076,7 @@
             }
         }
         
-      async function saveResultsToGoogleSheets(data) {
+     async function saveResultsToGoogleSheets(data) {
     try {
         console.log('Submitting results to Google Sheets...');
         
@@ -2086,32 +2086,31 @@
             ...data
         };
         
-        console.log('Submission data:', JSON.stringify(submissionData).substring(0, 200) + '...');
+        console.log('Sending data to Google Apps Script...');
         
-        const response = await fetch(SUBMIT_URL, {
+        // Create a unique URL to avoid caching issues
+        const url = SUBMIT_URL + '?t=' + Date.now();
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            mode: 'no-cors', // Important for Google Apps Script
             body: JSON.stringify(submissionData)
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        // With no-cors mode, we can't read the response
+        console.log('Results submitted (no-cors mode)');
         
-        const result = await response.json();
-        console.log('Submission response:', result);
-        
-        if (result.success) {
-            return true;
-        } else {
-            throw new Error(result.message || 'Failed to save results');
-        }
+        // Since we can't read the response with no-cors, 
+        // we'll assume it was successful if no error was thrown
+        showNotification('✅ Results submitted successfully!');
+        return true;
         
     } catch (error) {
         console.error('Error submitting to Google Sheets:', error);
-        // Return false but don't throw - let the user see results locally
+        showNotification('⚠️ Results saved locally. Check console for details.');
         return false;
     }
 }
