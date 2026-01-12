@@ -23,7 +23,7 @@ const maxSwitches = 3;
 let isTestActive = false;
 
 // Apps Script URL (Replace with your deployed URL)
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-3VFN7vIt57UaLOEW7Yd771XdXnJPblJb4AN2j2mZkus_dQgfNQvoLRhELrP5kOiiQg/exec";
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
