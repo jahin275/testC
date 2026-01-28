@@ -27,7 +27,7 @@
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
     
     <style>
-        /* ORANGE THEME */
+        /* ORANGE THEME - Styles remain the same */
         * {
             margin: 0;
             padding: 0;
@@ -908,7 +908,6 @@
                         <p>• There are 80 questions total: 30 English, 25 Math, 25 Analytical</p>
                         <p>• Each correct answer: +1 mark, Each wrong answer: -0.25 marks</p>
                         <p>• Passing marks: English (8.75), Math (4.5), Analytical (3.5)</p>
-                        <p>• Tab switching is monitored and limited to 3 attempts</p>
                         <p>• Test will auto-submit after 90 minutes</p>
                         <p>• Do not refresh the page during the test</p>
                     </div>
@@ -954,7 +953,7 @@
                 <div class="terms-agreement">
                     <input type="checkbox" id="agreeTerms" required>
                     <label for="agreeTerms">
-                        I have read and understood all instructions. I agree to follow the test rules and understand that tab switching is monitored.
+                        I have read and understood all instructions. I agree to follow the test rules.
                     </label>
                 </div>
                 
@@ -969,12 +968,12 @@
             <div id="quiz" style="display: none;">
                 <div class="test-warnings">
                     <div class="warning-item">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <span>Tab switches remaining: <span id="switchCount">3</span></span>
-                    </div>
-                    <div class="warning-item">
                         <i class="fas fa-hourglass-end"></i>
                         <span>Auto-submit in: <span id="warningCountdown">90:00</span></span>
+                    </div>
+                    <div class="warning-item">
+                        <i class="fas fa-clock"></i>
+                        <span>Time remaining: <span id="timeRemaining">90:00</span></span>
                     </div>
                 </div>
                 
@@ -1151,9 +1150,6 @@
         
         // Security variables
         let isTestActive = false;
-        let switchCount = 0;
-        const maxSwitches = 3;
-        let lastFocusTime = Date.now();
         
         // Mobile detection
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1188,65 +1184,26 @@
                     return e.returnValue;
                 }
             });
+        }
+
+        // ============================================
+        // ENHANCED SECURITY FUNCTIONS - SIMPLIFIED
+        // ============================================
+        function setupTestSecurity() {
+            isTestActive = true;
             
-            // Enhanced cheat prevention
+            // Disable copy-paste
             document.addEventListener('copy', preventCopy);
             document.addEventListener('cut', preventCopy);
             document.addEventListener('paste', preventCopy);
             
-            // Prevent right-click during test
+            // Disable right-click
             document.addEventListener('contextmenu', function(e) {
                 if (isTestActive) {
                     e.preventDefault();
-                    showNotification('Right-click disabled during test!');
                     return false;
                 }
             });
-            
-            // Prevent keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
-                if (isTestActive) {
-                    // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
-                    if (e.key === 'F12' || 
-                        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key)) ||
-                        (e.ctrlKey && e.key === 'u')) {
-                        e.preventDefault();
-                        showNotification('Developer tools disabled during test!');
-                        return false;
-                    }
-                    
-                    // Prevent screenshot (Print Screen)
-                    if (e.key === 'PrintScreen') {
-                        e.preventDefault();
-                        showNotification('Screenshots disabled during test!');
-                        return false;
-                    }
-                }
-            });
-        }
-        
-        function preventCopy(e) {
-            if (isTestActive) {
-                e.preventDefault();
-                showNotification('Copy-paste disabled during test!');
-                return false;
-            }
-        }
-
-        // ============================================
-        // ENHANCED SECURITY FUNCTIONS
-        // ============================================
-        function setupTestSecurity() {
-            isTestActive = true;
-            switchCount = 0;
-            lastFocusTime = Date.now();
-            
-            // Visibility change (tab switching)
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-            
-            // Window blur/focus
-            window.addEventListener('blur', handleWindowBlur);
-            window.addEventListener('focus', handleWindowFocus);
             
             // Disable select
             document.body.style.userSelect = 'none';
@@ -1256,78 +1213,20 @@
         function removeTestSecurity() {
             isTestActive = false;
             
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('blur', handleWindowBlur);
-            window.removeEventListener('focus', handleWindowFocus);
+            document.removeEventListener('copy', preventCopy);
+            document.removeEventListener('cut', preventCopy);
+            document.removeEventListener('paste', preventCopy);
+            document.removeEventListener('contextmenu', preventCopy);
             
             // Re-enable select
             document.body.style.userSelect = 'auto';
             document.body.style.webkitUserSelect = 'auto';
         }
         
-        function handleVisibilityChange() {
-            if (isTestActive && document.hidden) {
-                const now = Date.now();
-                const timeDiff = now - lastFocusTime;
-                
-                // Only count as switch if more than 1 second since last focus
-                if (timeDiff > 1000) {
-                    switchCount++;
-                    updateSwitchCount();
-                    
-                    if (switchCount === 1) {
-                        alert('⚠️ Warning 1/3: Tab switching detected! Two more warnings and test will auto-submit.');
-                    } else if (switchCount === 2) {
-                        alert('⚠️ Warning 2/3: Second tab switch detected! One more warning and test will auto-submit.');
-                    } else if (switchCount >= 3) {
-                        alert('❌ Test terminated due to multiple tab switches! Auto-submitting...');
-                        submitTest();
-                    }
-                }
-            }
-            lastFocusTime = Date.now();
-        }
-        
-        function handleWindowBlur() {
+        function preventCopy(e) {
             if (isTestActive) {
-                const activeElement = document.activeElement;
-                const isInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-                
-                // Don't count if user is just clicking on browser UI
-                if (!isInput) {
-                    setTimeout(() => {
-                        if (!document.hasFocus()) {
-                            switchCount++;
-                            updateSwitchCount();
-                            
-                            if (switchCount >= maxSwitches) {
-                                alert('❌ Test terminated due to window switching! Auto-submitting...');
-                                submitTest();
-                            }
-                        }
-                    }, 100);
-                }
-            }
-        }
-        
-        function handleWindowFocus() {
-            lastFocusTime = Date.now();
-        }
-        
-        function updateSwitchCount() {
-            const countEl = document.getElementById('switchCount');
-            if (countEl) {
-                const remaining = Math.max(0, maxSwitches - switchCount);
-                countEl.textContent = remaining;
-                
-                // Change color based on warnings
-                if (remaining === 1) {
-                    countEl.style.color = '#f44336';
-                    countEl.style.fontWeight = 'bold';
-                } else if (remaining === 2) {
-                    countEl.style.color = '#ff9800';
-                    countEl.style.fontWeight = 'bold';
-                }
+                e.preventDefault();
+                return false;
             }
         }
 
@@ -1682,9 +1581,8 @@
         // TEST FUNCTIONS
         // ============================================
         function startTest() {
-            // Setup security
+            // Setup simplified security
             setupTestSecurity();
-            updateSwitchCount();
             
             // Record start time
             startTime = new Date().toISOString();
@@ -1900,6 +1798,19 @@
                 updateFixedTimerDisplay();
                 updateTimerProgress();
                 
+                // Update warning countdown
+                const warningEl = document.getElementById('warningCountdown');
+                const timeRemainingEl = document.getElementById('timeRemaining');
+                
+                if (warningEl || timeRemainingEl) {
+                    const minutes = Math.floor(timeLeft / 60);
+                    const seconds = timeLeft % 60;
+                    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    if (warningEl) warningEl.textContent = timeString;
+                    if (timeRemainingEl) timeRemainingEl.textContent = timeString;
+                }
+                
                 // Change timer color based on time
                 const timerElement = document.getElementById('fixedTimer');
                 if (timeLeft <= 300) { // 5 minutes
@@ -1908,27 +1819,7 @@
                     timerElement.className = 'fixed-timer-container warning';
                 }
                 
-                // Update warning countdown
-                if (timeLeft <= 600) {
-                    const minutesLeft = Math.ceil(timeLeft / 60);
-                    const warningEl = document.getElementById('warningCountdown');
-                    if (warningEl) warningEl.textContent = `${minutesLeft}:${(timeLeft % 60).toString().padStart(2, '0')}`;
-                }
-                
-                // Show warnings
-                if (timeLeft === 600) {
-                    showNotification('⚠️ 10 minutes remaining!');
-                }
-                
-                if (timeLeft === 300) {
-                    showNotification('⚠️ 5 minutes remaining! Hurry up!');
-                }
-                
-                if (timeLeft === 60) {
-                    showNotification('⚠️ 1 minute remaining! Submit now!');
-                }
-                
-                // Auto-submit when time is up
+                // Auto-submit when time is up (only time-based auto-submit remains)
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     showNotification('⏰ Time is up! Auto-submitting...');
@@ -1965,10 +1856,7 @@
         // SUBMIT TEST AND SAVE RESULTS
         // ============================================
         async function submitTest() {
-            if (!confirm('Are you sure you want to submit the test? You cannot change answers after submission.')) {
-                return;
-            }
-            
+            // Direct submission without confirmation
             clearInterval(timerInterval);
             removeTestSecurity();
             
@@ -2076,44 +1964,44 @@
             }
         }
         
-     async function saveResultsToGoogleSheets(data) {
-    try {
-        console.log('Submitting results to Google Sheets...');
-        
-        // Prepare the data
-        const submissionData = {
-            action: 'submitResults',
-            ...data
-        };
-        
-        console.log('Sending data to Google Apps Script...');
-        
-        // Create a unique URL to avoid caching issues
-        const url = SUBMIT_URL + '?t=' + Date.now();
-        
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            mode: 'no-cors', // Important for Google Apps Script
-            body: JSON.stringify(submissionData)
-        });
-        
-        // With no-cors mode, we can't read the response
-        console.log('Results submitted (no-cors mode)');
-        
-        // Since we can't read the response with no-cors, 
-        // we'll assume it was successful if no error was thrown
-        showNotification('✅ Results submitted successfully!');
-        return true;
-        
-    } catch (error) {
-        console.error('Error submitting to Google Sheets:', error);
-        showNotification('⚠️ Results saved locally. Check console for details.');
-        return false;
-    }
-}
+        async function saveResultsToGoogleSheets(data) {
+            try {
+                console.log('Submitting results to Google Sheets...');
+                
+                // Prepare the data
+                const submissionData = {
+                    action: 'submitResults',
+                    ...data
+                };
+                
+                console.log('Sending data to Google Apps Script...');
+                
+                // Create a unique URL to avoid caching issues
+                const url = SUBMIT_URL + '?t=' + Date.now();
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    mode: 'no-cors', // Important for Google Apps Script
+                    body: JSON.stringify(submissionData)
+                });
+                
+                // With no-cors mode, we can't read the response
+                console.log('Results submitted (no-cors mode)');
+                
+                // Since we can't read the response with no-cors, 
+                // we'll assume it was successful if no error was thrown
+                showNotification('✅ Results submitted successfully!');
+                return true;
+                
+            } catch (error) {
+                console.error('Error submitting to Google Sheets:', error);
+                showNotification('⚠️ Results saved locally. Check console for details.');
+                return false;
+            }
+        }
         
         function showResults(correct, wrong, unattempted, totalMarks, sectionScores, passStatus, allPassed, testId, durationMinutes) {
             // Update overall scores
@@ -2206,8 +2094,6 @@
                 
                 // Reset security
                 removeTestSecurity();
-                switchCount = 0;
-                updateSwitchCount();
                 
                 // Reset user responses
                 Object.keys(userResponses).forEach(key => {
