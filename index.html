@@ -489,7 +489,7 @@
             color: #ff6b35;
         }
 
-        /* Result Overlay */
+        /* Result Overlay - UPDATED */
         .result-overlay {
             display: none;
             position: fixed;
@@ -509,7 +509,7 @@
             background: white;
             padding: 40px;
             border-radius: 20px;
-            max-width: 800px;
+            max-width: 1000px;
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
@@ -602,6 +602,117 @@
 
         .value.neutral {
             color: #757575;
+        }
+
+        /* Answer Review Section - NEW */
+        .answer-review {
+            margin: 30px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .review-header {
+            background: #ff6b35;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .review-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .review-content {
+            background: white;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .review-question {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .question-review-text {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .answer-comparison {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .answer-box {
+            flex: 1;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .user-answer {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+
+        .correct-answer {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+
+        .answer-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .answer-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .correct {
+            color: #4caf50;
+        }
+
+        .incorrect {
+            color: #f44336;
+        }
+
+        .answer-status {
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .status-correct {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-incorrect {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-unattempted {
+            background: #fff3e0;
+            color: #ef6c00;
         }
 
         /* Section Results */
@@ -764,6 +875,11 @@
             
             .section-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .answer-comparison {
+                flex-direction: column;
+                gap: 10px;
             }
             
             .result-actions {
@@ -1020,7 +1136,7 @@
         </footer>
     </div>
 
-    <!-- Result Overlay -->
+    <!-- Result Overlay with Answer Review -->
     <div class="result-overlay" id="resultOverlay">
         <div class="result-card">
             <div class="result-header">
@@ -1046,6 +1162,17 @@
                         <span class="label">Unattempted</span>
                         <span class="value neutral" id="unattemptedCount">0</span>
                     </div>
+                </div>
+            </div>
+            
+            <!-- Answer Review Section - NEW -->
+            <div class="answer-review" id="answerReviewSection" style="display: none;">
+                <div class="review-header" onclick="toggleReview()">
+                    <h3><i class="fas fa-clipboard-check"></i> Answer Review</h3>
+                    <i class="fas fa-chevron-down" id="reviewToggleIcon"></i>
+                </div>
+                <div class="review-content" id="reviewContent">
+                    <!-- Filled by JavaScript -->
                 </div>
             </div>
             
@@ -1122,7 +1249,7 @@
 
     <script>
         // ============================================
-        // DU IBA MOCK TEST - COMPLETE SCRIPT
+        // DU IBA MOCK TEST - FIXED VERSION
         // ============================================
 
         // Global variables
@@ -1134,6 +1261,7 @@
         let correctAnswers = {};
         let userResponses = {};
         let testId = '';
+        let reviewData = null;
         
         // Test config
         let testConfig = {
@@ -1154,15 +1282,14 @@
         // Mobile detection
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        // Google Apps Script URL (REPLACE WITH YOUR URL)
+        // Google Apps Script URL
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
-        const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwIrNECITCYBgUHJlqULgL1OMyMN5R4O4dB2Cfhr9VRzbuCXTVFFyeVh3K5xcAPYFSUYA/exec";
 
         // ============================================
         // INITIALIZATION
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ DU IBA Mock Test Initialized');
+            console.log('✅ DU IBA Mock Test Initialized - FIXED VERSION');
             loadQuestions();
             setupEventListeners();
         });
@@ -1187,7 +1314,7 @@
         }
 
         // ============================================
-        // ENHANCED SECURITY FUNCTIONS - SIMPLIFIED
+        // ENHANCED SECURITY FUNCTIONS
         // ============================================
         function setupTestSecurity() {
             isTestActive = true;
@@ -1231,7 +1358,7 @@
         }
 
         // ============================================
-        // LOAD QUESTIONS - FIXED VERSION
+        // LOAD QUESTIONS - FIXED
         // ============================================
         async function loadQuestions() {
             try {
@@ -1305,7 +1432,7 @@
             questionsData.forEach((q, index) => {
                 const type = q.Type || '';
                 const question = q.Question || '';
-                const answer = (q.Answer || '').toString().toLowerCase().trim();
+                const answer = (q.Answer || '').toString().toUpperCase().trim(); // FIXED: Uppercase
                 
                 // Skip if it's a Text Row or empty question
                 if (type.includes('Text Row') || !question.trim()) return;
@@ -1320,24 +1447,31 @@
                 const questionId = `q${questionCounter}`;
                 const section = getSectionFromType(type);
                 
-                if (answer) {
-                    correctAnswers[questionId] = answer;
-                }
+                // Store correct answer
+                correctAnswers[questionId] = answer;
                 
                 userResponses[questionId] = {
                     questionNumber: questionCounter,
                     questionText: question,
                     userAnswer: '',
-                    correctAnswer: answer,
+                    correctAnswer: answer, // Store correct answer for reference
                     isCorrect: false,
                     selectedOption: '',
                     section: section,
                     marks: parseFloat(q.Marks) || 1,
-                    type: type
+                    type: type,
+                    options: {
+                        A: q['Option A'] || '',
+                        B: q['Option B'] || '',
+                        C: q['Option C'] || '',
+                        D: q['Option D'] || '',
+                        E: q['Option E'] || ''
+                    }
                 };
             });
             
             console.log(`📝 Processed ${questionCounter} questions`);
+            console.log('Sample correct answers:', Object.entries(correctAnswers).slice(0, 3));
         }
         
         function getSectionFromType(type) {
@@ -1578,7 +1712,7 @@
         }
 
         // ============================================
-        // TEST FUNCTIONS
+        // TEST FUNCTIONS - FIXED
         // ============================================
         function startTest() {
             // Setup simplified security
@@ -1668,8 +1802,8 @@
                             if (optionText && optionText.trim()) {
                                 optionText = processQuestionText(optionText);
                                 optionsHtml += `
-                                    <div class="option" onclick="selectOption('${questionId}', '${opt.toLowerCase()}')">
-                                        <input type="radio" name="${questionId}" value="${opt.toLowerCase()}" id="${questionId}${opt.toLowerCase()}">
+                                    <div class="option" onclick="selectOption('${questionId}', '${opt}')">
+                                        <input type="radio" name="${questionId}" value="${opt}" id="${questionId}${opt}">
                                         <div class="option-label">${opt}) ${optionText}</div>
                                     </div>
                                 `;
@@ -1726,6 +1860,7 @@
             return text;
         }
         
+        // FIXED: Proper case handling
         function selectOption(questionId, option) {
             if (!isTestActive) return;
             
@@ -1740,11 +1875,17 @@
                 selectedOption.checked = true;
                 selectedOption.parentElement.classList.add('selected');
                 
-                // Update user response
+                // Update user response - store as uppercase
                 if (userResponses[questionId]) {
-                    userResponses[questionId].userAnswer = option.toLowerCase();
+                    userResponses[questionId].userAnswer = option.toUpperCase();
                     userResponses[questionId].selectedOption = option.toUpperCase();
-                    userResponses[questionId].isCorrect = (option.toLowerCase() === userResponses[questionId].correctAnswer);
+                    
+                    // Compare with correct answer (case-insensitive)
+                    const correctAnswer = correctAnswers[questionId] || '';
+                    const userAnswer = option.toUpperCase();
+                    userResponses[questionId].isCorrect = (userAnswer === correctAnswer.toUpperCase());
+                    
+                    console.log(`Q${questionId}: User=${userAnswer}, Correct=${correctAnswer}, Match=${userResponses[questionId].isCorrect}`);
                 }
                 
                 // Update progress
@@ -1819,7 +1960,7 @@
                     timerElement.className = 'fixed-timer-container warning';
                 }
                 
-                // Auto-submit when time is up (only time-based auto-submit remains)
+                // Auto-submit when time is up
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     showNotification('⏰ Time is up! Auto-submitting...');
@@ -1853,7 +1994,7 @@
         }
 
         // ============================================
-        // SUBMIT TEST AND SAVE RESULTS
+        // SUBMIT TEST - FIXED VERSION
         // ============================================
         async function submitTest() {
             // Direct submission without confirmation
@@ -1862,6 +2003,104 @@
             
             const endTime = new Date().toISOString();
             
+            // Calculate local scores for display
+            const localScore = calculateLocalScore();
+            
+            // Generate test ID
+            testId = "IBA-" + Date.now().toString().substr(-8);
+            
+            // Prepare data for submission
+            const submissionData = {
+                action: 'submitResults',
+                testId: testId,
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                startTime: startTime,
+                endTime: endTime,
+                duration: Math.round((new Date(endTime) - new Date(startTime)) / 1000),
+                correct: localScore.correct,
+                wrong: localScore.wrong,
+                unattempted: localScore.unattempted,
+                totalMarks: localScore.totalMarks.toFixed(2),
+                sectionScores: localScore.sectionScores,
+                passStatus: localScore.passStatus,
+                responses: userResponses,
+                timestamp: new Date().toISOString(),
+                debug: {
+                    totalQuestions: totalQuestions,
+                    correctAnswers: correctAnswers,
+                    userAnswers: Object.keys(userResponses).reduce((acc, key) => {
+                        acc[key] = userResponses[key].userAnswer;
+                        return acc;
+                    }, {})
+                }
+            };
+            
+            // Show loading
+            showNotification('Submitting results...');
+            
+            try {
+                // Save to Google Sheets and get detailed results
+                const serverScore = await saveResultsToGoogleSheets(submissionData);
+                
+                if (serverScore) {
+                    // Use server-calculated score (more accurate)
+                    showResults(
+                        serverScore.correct, 
+                        serverScore.wrong, 
+                        serverScore.unattempted, 
+                        parseFloat(serverScore.totalMarks), 
+                        serverScore.sectionScores, 
+                        serverScore.passStatus, 
+                        serverScore.allPassed, 
+                        testId,
+                        (submissionData.duration / 60).toFixed(2)
+                    );
+                    
+                    // Store review data if available
+                    if (serverScore.reviewData) {
+                        reviewData = serverScore.reviewData;
+                        displayAnswerReview();
+                    }
+                    
+                    showNotification('✅ Results saved successfully!');
+                } else {
+                    // Use local score if server fails
+                    showNotification('⚠️ Using local score calculation');
+                    showResults(
+                        localScore.correct,
+                        localScore.wrong,
+                        localScore.unattempted,
+                        localScore.totalMarks,
+                        localScore.sectionScores,
+                        localScore.passStatus,
+                        localScore.allPassed,
+                        testId,
+                        (submissionData.duration / 60).toFixed(2)
+                    );
+                }
+                
+            } catch (error) {
+                console.error('Error saving results:', error);
+                // Use local score
+                showResults(
+                    localScore.correct,
+                    localScore.wrong,
+                    localScore.unattempted,
+                    localScore.totalMarks,
+                    localScore.sectionScores,
+                    localScore.passStatus,
+                    localScore.allPassed,
+                    testId,
+                    (submissionData.duration / 60).toFixed(2)
+                );
+                showNotification('⚠️ Results displayed locally. Connection issue with server.');
+            }
+        }
+        
+        // NEW: Calculate local score for immediate display
+        function calculateLocalScore() {
             let correct = 0;
             let wrong = 0;
             let unattempted = 0;
@@ -1873,43 +2112,31 @@
                 Analytical: { correct: 0, wrong: 0, score: 0 }
             };
             
-            // Calculate scores
+            // Calculate scores based on stored correct answers
             for (let i = 1; i <= totalQuestions; i++) {
                 const questionId = `q${i}`;
-                const selected = document.querySelector(`input[name="${questionId}"]:checked`);
                 const response = userResponses[questionId];
                 const section = response?.section || 'English';
+                const userAnswer = response?.userAnswer || '';
+                const correctAnswer = correctAnswers[questionId] || '';
                 
-                if (!selected) {
+                if (!userAnswer) {
                     unattempted++;
                 } else {
-                    const userAnswer = selected.value.toLowerCase().trim();
-                    const correctAnswer = correctAnswers[questionId];
-                    const marksForQuestion = response?.marks || 1;
-                    
-                    if (correctAnswer && userAnswer === correctAnswer) {
+                    // Case-insensitive comparison
+                    if (userAnswer.toUpperCase() === correctAnswer.toUpperCase()) {
                         correct++;
-                        totalMarks += marksForQuestion;
+                        totalMarks += 1;
                         sectionScores[section].correct++;
-                        sectionScores[section].score += marksForQuestion;
+                        sectionScores[section].score += 1;
                     } else {
                         wrong++;
-                        const penalty = marksForQuestion * testConfig.wrongPenalty;
-                        totalMarks -= penalty;
+                        totalMarks -= 0.25;
                         sectionScores[section].wrong++;
-                        sectionScores[section].score -= penalty;
+                        sectionScores[section].score -= 0.25;
                     }
                 }
             }
-            
-            // Calculate duration
-            const start = new Date(startTime);
-            const end = new Date(endTime);
-            const durationSeconds = Math.round((end - start) / 1000);
-            const durationMinutes = (durationSeconds / 60).toFixed(2);
-            
-            // Generate test ID
-            testId = "IBA-" + Date.now().toString().substr(-8);
             
             // Calculate pass/fail status
             const passStatus = {
@@ -1920,86 +2147,58 @@
             
             const allPassed = passStatus.English && passStatus.Math && passStatus.Analytical;
             
-            // Prepare data for submission
-            const submissionData = {
-                action: 'submitResults',
-                testId: testId,
-                name: document.getElementById('name').value.trim(),
-                email: document.getElementById('email').value.trim(),
-                phone: document.getElementById('phone').value.trim(),
-                startTime: startTime,
-                endTime: endTime,
-                duration: durationSeconds,
-                correct: correct,
-                wrong: wrong,
-                unattempted: unattempted,
-                totalMarks: totalMarks.toFixed(2),
-                sectionScores: sectionScores,
-                passStatus: passStatus,
-                responses: userResponses,
-                timestamp: new Date().toISOString()
+            console.log('Local Score Calculation:', {
+                correct, wrong, unattempted, totalMarks,
+                sectionScores, passStatus, allPassed
+            });
+            
+            return {
+                correct,
+                wrong,
+                unattempted,
+                totalMarks,
+                sectionScores,
+                passStatus,
+                allPassed
             };
-            
-            // Show loading
-            showNotification('Submitting results...');
-            
-            try {
-                // Save to Google Sheets and send email
-                const saveSuccess = await saveResultsToGoogleSheets(submissionData);
-                
-                if (saveSuccess) {
-                    showNotification('✅ Results saved successfully!');
-                } else {
-                    showNotification('⚠️ Results saved locally. Email may not have been sent.');
-                }
-                
-                // Show results
-                showResults(correct, wrong, unattempted, totalMarks, sectionScores, passStatus, allPassed, testId, durationMinutes);
-                
-            } catch (error) {
-                console.error('Error saving results:', error);
-                // Still show results even if saving fails
-                showResults(correct, wrong, unattempted, totalMarks, sectionScores, passStatus, allPassed, testId, durationMinutes);
-                showNotification('⚠️ Results displayed locally. Connection issue with server.');
-            }
         }
         
         async function saveResultsToGoogleSheets(data) {
             try {
                 console.log('Submitting results to Google Sheets...');
                 
-                // Prepare the data
-                const submissionData = {
-                    action: 'submitResults',
-                    ...data
-                };
-                
-                console.log('Sending data to Google Apps Script...');
-                
-                // Create a unique URL to avoid caching issues
-                const url = SUBMIT_URL + '?t=' + Date.now();
+                const url = APPS_SCRIPT_URL + '?t=' + Date.now();
                 
                 const response = await fetch(url, {
                     method: 'POST',
+                    mode: 'no-cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    mode: 'no-cors', // Important for Google Apps Script
-                    body: JSON.stringify(submissionData)
+                    body: JSON.stringify(data)
                 });
                 
-                // With no-cors mode, we can't read the response
+                // In no-cors mode, we can't read response directly
+                // But we'll try to get the score from server via separate GET
                 console.log('Results submitted (no-cors mode)');
                 
-                // Since we can't read the response with no-cors, 
-                // we'll assume it was successful if no error was thrown
-                showNotification('✅ Results submitted successfully!');
-                return true;
+                // Try to get the calculated score from server via separate request
+                try {
+                    const scoreUrl = APPS_SCRIPT_URL + '?action=getScore&testId=' + data.testId + '&t=' + Date.now();
+                    const scoreResponse = await fetch(scoreUrl);
+                    if (scoreResponse.ok) {
+                        const scoreData = await scoreResponse.json();
+                        return scoreData;
+                    }
+                } catch (scoreError) {
+                    console.log('Could not retrieve server score:', scoreError);
+                }
+                
+                return null;
                 
             } catch (error) {
                 console.error('Error submitting to Google Sheets:', error);
-                showNotification('⚠️ Results saved locally. Check console for details.');
-                return false;
+                return null;
             }
         }
         
@@ -2057,6 +2256,75 @@
         }
 
         // ============================================
+        // ANSWER REVIEW FUNCTIONS - NEW
+        // ============================================
+        function displayAnswerReview() {
+            const reviewContent = document.getElementById('reviewContent');
+            if (!reviewContent) return;
+            
+            reviewContent.innerHTML = '';
+            
+            let hasAnswersToReview = false;
+            
+            for (let i = 1; i <= totalQuestions; i++) {
+                const questionId = `q${i}`;
+                const response = userResponses[questionId];
+                if (!response) continue;
+                
+                const userAnswer = response.userAnswer || 'Not Attempted';
+                const correctAnswer = response.correctAnswer || 'Not Provided';
+                const questionText = response.questionText || `Question ${i}`;
+                
+                // Only show questions that were attempted
+                if (userAnswer !== 'Not Attempted') {
+                    hasAnswersToReview = true;
+                    
+                    const isCorrect = userAnswer.toUpperCase() === correctAnswer.toUpperCase();
+                    
+                    const reviewItem = document.createElement('div');
+                    reviewItem.className = 'review-question';
+                    
+                    reviewItem.innerHTML = `
+                        <div class="question-review-text">${i}. ${questionText}</div>
+                        <div class="answer-comparison">
+                            <div class="answer-box user-answer">
+                                <div class="answer-label">Your Answer</div>
+                                <div class="answer-value ${isCorrect ? 'correct' : 'incorrect'}">${userAnswer}</div>
+                            </div>
+                            <div class="answer-box correct-answer">
+                                <div class="answer-label">Correct Answer</div>
+                                <div class="answer-value correct">${correctAnswer}</div>
+                            </div>
+                        </div>
+                        <div class="answer-status ${isCorrect ? 'status-correct' : 'status-incorrect'}">
+                            ${isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                        </div>
+                    `;
+                    
+                    reviewContent.appendChild(reviewItem);
+                }
+            }
+            
+            // Show review section only if there are answers to review
+            if (hasAnswersToReview) {
+                document.getElementById('answerReviewSection').style.display = 'block';
+            }
+        }
+        
+        function toggleReview() {
+            const reviewContent = document.getElementById('reviewContent');
+            const toggleIcon = document.getElementById('reviewToggleIcon');
+            
+            if (reviewContent.style.display === 'none' || reviewContent.style.display === '') {
+                reviewContent.style.display = 'block';
+                toggleIcon.className = 'fas fa-chevron-up';
+            } else {
+                reviewContent.style.display = 'none';
+                toggleIcon.className = 'fas fa-chevron-down';
+            }
+        }
+
+        // ============================================
         // GLOBAL FUNCTIONS
         // ============================================
         window.validateAndStartTest = validateAndStartTest;
@@ -2066,6 +2334,7 @@
         window.printResults = printResults;
         window.resetTest = resetTest;
         window.loadQuestions = loadQuestions;
+        window.toggleReview = toggleReview;
         
         function closeResults() {
             document.getElementById('resultOverlay').style.display = 'none';
@@ -2109,17 +2378,21 @@
                 // Hide elements
                 document.getElementById('fixedTimer').style.display = 'none';
                 document.getElementById('mobileSubmit').style.display = 'none';
+                document.getElementById('answerReviewSection').style.display = 'none';
                 
                 // Show form
                 document.getElementById('testForm').style.display = 'block';
                 document.getElementById('quiz').style.display = 'none';
+                
+                // Reset review data
+                reviewData = null;
                 
                 // Scroll to top
                 window.scrollTo(0, 0);
             }
         }
         
-        console.log('✅ DU IBA Test Script Loaded');
+        console.log('✅ DU IBA Test Script Loaded - FIXED VERSION');
     </script>
 </body>
 </html>
