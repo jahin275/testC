@@ -553,7 +553,7 @@
         }
 
         .score-value {
-            font-size: 3.5rem;
+            font-size: 4rem;
             font-weight: bold;
             color: #ff6b35;
             line-height: 1;
@@ -1023,7 +1023,6 @@
                         <p>• The test duration is 90 minutes</p>
                         <p>• There are 80 questions total: 30 English, 25 Math, 25 Analytical</p>
                         <p>• Each correct answer: +1 mark, Each wrong answer: -0.25 marks</p>
-                        <p>• Passing marks: English (8.75), Math (4.5), Analytical (3.5)</p>
                         <p>• Test will auto-submit after 90 minutes</p>
                         <p>• Do not refresh the page during the test</p>
                     </div>
@@ -1046,15 +1045,11 @@
                         <i class="fas fa-exclamation-triangle"></i>
                         <span>Negative scores possible</span>
                     </div>
-                    <div class="info-item">
-                        <i class="fas fa-graduation-cap"></i>
-                        <span>Passing: English (8.75), Math (4.5), Analytical (3.5)</span>
-                    </div>
                 </div>
                 
                 <div class="loading-indicator" id="formLoading">
                     <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading questions from Google Sheets...</p>
+                    <p>Loading questions from Pandora's Box...</p>
                 </div>
                 
                 <div class="error-alert" id="formError" style="display: none;">
@@ -1124,12 +1119,12 @@
         </div>
         
         <footer>
-            <p>DU IBA Mock Test Platform © 2024 | Powered by Plan C</p>
+            <p>DU IBA Mock Test Platform © 2026 | Powered by Plan C</p>
             <p class="footer-links">
                 <a href="https://www.facebook.com/plancbymj" target="_blank">
                     <i class="fab fa-facebook"></i> Plan C
                 </a>
-                <a href="https://web.facebook.com/groups/groupchangetocunitbymj" target="_blank">
+                <a href="https://web.facebook.com/groups/groupchangetocunit" target="_blank">
                     <i class="fab fa-facebook-group"></i> Community
                 </a>
             </p>
@@ -1201,7 +1196,7 @@
                         </div>
                         <div class="section-score">
                             <span class="score" id="mathScore">0.00</span>
-                            <span class="passing">/ 4.50</span>
+                            <span class="passing">/ 5.750</span>
                         </div>
                         <div class="section-stats">
                             <span><i class="fas fa-check"></i> <span id="mathCorrect">0</span></span>
@@ -1216,7 +1211,7 @@
                         </div>
                         <div class="section-score">
                             <span class="score" id="analyticalScore">0.00</span>
-                            <span class="passing">/ 3.50</span>
+                            <span class="passing">/ 40</span>
                         </div>
                         <div class="section-stats">
                             <span><i class="fas fa-check"></i> <span id="analyticalCorrect">0</span></span>
@@ -1242,7 +1237,15 @@
             
             <div class="email-notice">
                 <i class="fas fa-envelope"></i>
-                <p>Check your email for detailed analysis and feedback from Mahdi Jahin</p>
+                <p>Check your email for detailed analysis and feedback from Plan C</p>
+                  <p class="footer-links">
+                <a href="https://www.facebook.com/plancbymj" target="_blank">
+                    <i class="fab fa-facebook"></i> Plan C
+                </a>
+                <a href="https://web.facebook.com/groups/groupchangetocunit" target="_blank">
+                    <i class="fab fa-facebook-group"></i> Community
+                </a>
+            </p>
             </div>
         </div>
     </div>
@@ -1271,8 +1274,8 @@
             allowNegative: true,
             passingMarks: {
                 english: 8.75,
-                math: 4.5,
-                analytical: 3.5
+                math: 5.75,
+                analytical: 4
             }
         };
         
@@ -2165,7 +2168,7 @@
         
         async function saveResultsToGoogleSheets(data) {
             try {
-                console.log('Submitting results to Google Sheets...');
+                console.log('Submitting results...');
                 
                 const url = APPS_SCRIPT_URL + '?t=' + Date.now();
                 
@@ -2197,7 +2200,7 @@
                 return null;
                 
             } catch (error) {
-                console.error('Error submitting to Google Sheets:', error);
+                console.error('Error submitting Results:', error);
                 return null;
             }
         }
