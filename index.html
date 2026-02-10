@@ -209,6 +209,27 @@
             transform: translateY(-2px);
         }
 
+        .search-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .search-tab {
+            background: #f0f0f0;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .search-tab.active {
+            background: #ff7e5f;
+            color: white;
+        }
+
         .highlight-note {
             color: #d32f2f;
             background: #ffebee;
@@ -690,8 +711,15 @@
             <!-- Search Section -->
             <div class="search-section">
                 <h2 class="search-title"><i class="fas fa-search"></i> Search Your Result</h2>
+                
+                <div class="search-tabs">
+                    <div class="search-tab active" onclick="setSearchMode('email')">Search by Email</div>
+                    <div class="search-tab" onclick="setSearchMode('testid')">Search by Test ID</div>
+                </div>
+                
                 <div class="search-box">
-                    <input type="text" id="searchInput" class="search-input" placeholder="Enter your Test ID (e.g., IBA-72548755)...">
+                    <input type="email" id="emailInput" class="search-input" placeholder="Enter your registered email address..." style="display: block;">
+                    <input type="text" id="testIdInput" class="search-input" placeholder="Enter your Test ID (e.g., IBA-72548755)..." style="display: none;">
                     <button onclick="searchResult()" class="search-button">
                         <i class="fas fa-search"></i> Search Result
                     </button>
@@ -706,16 +734,17 @@
 
             <!-- Leaderboard -->
             <div id="leaderboardDisplay" class="leaderboard-container">
-                <h2 class="leaderboard-title"><i class="fas fa-trophy"></i> Top Performers</h2>
+                <h2 class="leaderboard-title"><i class="fas fa-trophy"></i> Top Performers Leaderboard</h2>
                 <div class="table-container">
                     <table class="leaderboard-table">
                         <thead>
                             <tr>
                                 <th style="width: 10%;">Rank</th>
-                                <th style="width: 35%;">Name</th>
+                                <th style="width: 25%;">Name</th>
                                 <th style="width: 15%;">Test ID</th>
-                                <th style="width: 20%;">Total Score</th>
-                                <th style="width: 20%;">All Passed</th>
+                                <th style="width: 25%;">Email</th>
+                                <th style="width: 15%;">Total Score</th>
+                                <th style="width: 10%;">Status</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboardBody"></tbody>
@@ -753,11 +782,35 @@
 
         // Updated Google Apps Script Web App URL
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzUFInPBWmVw4mwdjqIVuGGpe6JX4fi4g3FQ7XsQh7uSAHXr9FqOy_JPbJHiWsFZ_0bJQ/exec';
+        
+        let searchMode = 'email'; // 'email' or 'testid'
 
         // AI Assistant Function
         function showAIChat() {
             const message = "Hello! I'm your AI Assistant for the DU IBA Mock Test Results Portal. How can I help you today?\n\n• Need help interpreting your scores?\n• Want tips for improvement?\n• Questions about the test format?\n\nPlease contact your instructor for detailed academic guidance.";
             alert(message);
+        }
+
+        // Set search mode
+        function setSearchMode(mode) {
+            searchMode = mode;
+            
+            // Update tab styles
+            document.querySelectorAll('.search-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Show/hide input fields
+            if (mode === 'email') {
+                document.getElementById('emailInput').style.display = 'block';
+                document.getElementById('testIdInput').style.display = 'none';
+                document.getElementById('emailInput').focus();
+            } else {
+                document.getElementById('emailInput').style.display = 'none';
+                document.getElementById('testIdInput').style.display = 'block';
+                document.getElementById('testIdInput').focus();
+            }
         }
 
         // Load cached data immediately
@@ -916,7 +969,7 @@
                 const rankA = parseInt(a.rank) || 999;
                 const rankB = parseInt(b.rank) || 999;
                 return rankA - rankB;
-            }).slice(0, 20); // Show top 20 only
+            });
             
             sortedData.forEach(student => {
                 if (!student.name) return;
@@ -928,7 +981,7 @@
                 else if (rank === 2) rankClass = 'rank-2';
                 else if (rank === 3) rankClass = 'rank-3';
                 
-                const allPassedStatus = student.allPassed || student.AllPassed || 'NO';
+                const allPassedStatus = student.allPassed || 'NO';
                 const passedBadge = allPassedStatus.toUpperCase() === 'YES' ? 
                     '<span class="pass-badge pass-yes">PASS</span>' : 
                     '<span class="pass-badge pass-no">FAIL</span>';
@@ -937,28 +990,55 @@
                     <td><span class="rank-badge ${rankClass}">${rank}</span></td>
                     <td><strong>${student.name}</strong></td>
                     <td>${student.testId || 'N/A'}</td>
+                    <td><small>${student.email || 'N/A'}</small></td>
                     <td><strong>${student.totalScore || 0}</strong></td>
                     <td>${passedBadge}</td>
                 `;
+                
+                // Highlight current student if searching
+                if (currentStudent && currentStudent.email === student.email) {
+                    row.style.backgroundColor = '#e8f5e9';
+                }
+                
                 tbody.appendChild(row);
             });
         }
 
         function searchResult() {
-            const searchTerm = document.getElementById('searchInput').value.trim().toUpperCase();
-            if (!searchTerm) {
-                alert('Please enter your Test ID to search.');
-                return;
-            }
-
-            // Search by testId (case insensitive)
-            const student = studentsData.find(s => 
-                s.testId && s.testId.toUpperCase() === searchTerm
-            );
+            let searchTerm, student;
             
-            if (!student) {
-                alert('No result found for this Test ID. Please check and try again.');
-                return;
+            if (searchMode === 'email') {
+                searchTerm = document.getElementById('emailInput').value.trim().toLowerCase();
+                if (!searchTerm) {
+                    alert('Please enter your email address to search.');
+                    return;
+                }
+                
+                // Search by email (case insensitive)
+                student = studentsData.find(s => 
+                    s.email && s.email.toLowerCase() === searchTerm
+                );
+                
+                if (!student) {
+                    alert('No result found for this email. Please check and try again.');
+                    return;
+                }
+            } else {
+                searchTerm = document.getElementById('testIdInput').value.trim().toUpperCase();
+                if (!searchTerm) {
+                    alert('Please enter your Test ID to search.');
+                    return;
+                }
+                
+                // Search by testId (case insensitive)
+                student = studentsData.find(s => 
+                    s.testId && s.testId.toUpperCase() === searchTerm
+                );
+                
+                if (!student) {
+                    alert('No result found for this Test ID. Please check and try again.');
+                    return;
+                }
             }
 
             currentStudent = student;
@@ -994,8 +1074,8 @@
                     <div class="result-avatar">${avatar}</div>
                     <div class="result-info">
                         <h2 class="result-title">${student.name || 'Unknown Student'}</h2>
-                        <p class="result-subtitle">Test ID: ${student.testId || 'N/A'}</p>
-                        <p style="color: #666; margin-top: 5px;">Duration: ${student.duration ? student.duration.toFixed(2) : 'N/A'} minutes</p>
+                        <p class="result-subtitle">${student.email || 'No email provided'}</p>
+                        <p style="color: #666; margin-top: 5px;">Test ID: ${student.testId || 'N/A'} | Duration: ${student.duration ? student.duration.toFixed(2) : 'N/A'} minutes</p>
                     </div>
                     <div class="result-rank">Rank: ${student.rank || 'N/A'}</div>
                 </div>
@@ -1062,6 +1142,11 @@
             resultDiv.style.display = 'block';
             document.getElementById('leaderboardDisplay').style.display = 'none';
             resultDiv.scrollIntoView({ behavior: 'smooth' });
+            
+            // Refresh leaderboard to highlight current student
+            setTimeout(() => {
+                populateLeaderboard();
+            }, 100);
         }
 
         function createSubjectCard(subject, correct, wrong, score, passStatus, adjustedScore) {
@@ -1106,7 +1191,6 @@
                 'Mathematics': 'fas fa-calculator',
                 'Analytical': 'fas fa-brain',
                 'Math': 'fas fa-calculator',
-                'IQ': 'fas fa-brain',
             };
             return icons[subject] || 'fas fa-book';
         }
@@ -1115,6 +1199,11 @@
             document.getElementById('resultDisplay').style.display = 'none';
             document.getElementById('leaderboardDisplay').style.display = 'block';
             document.getElementById('leaderboardDisplay').scrollIntoView({ behavior: 'smooth' });
+            
+            // Highlight current student in leaderboard
+            setTimeout(() => {
+                populateLeaderboard();
+            }, 100);
         }
 
         function viewSolution() {
@@ -1160,7 +1249,7 @@
                         <div class="header">
                             <h1>DU IBA Mock Test Result</h1>
                             <h3>${currentStudent.name}</h3>
-                            <p>Test ID: ${currentStudent.testId} | Rank: ${currentStudent.rank}</p>
+                            <p>Email: ${currentStudent.email} | Test ID: ${currentStudent.testId} | Rank: ${currentStudent.rank}</p>
                         </div>
                         
                         <div class="score-grid">
@@ -1229,7 +1318,14 @@
             }, 500);
         }
 
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        // Add event listeners for both input fields
+        document.getElementById('emailInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchResult();
+            }
+        });
+
+        document.getElementById('testIdInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 searchResult();
             }
